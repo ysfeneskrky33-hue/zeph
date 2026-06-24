@@ -9,9 +9,9 @@ local Camera = workspace.CurrentCamera
 local S = {
 ESP_On = true, ESP_Box = true, ESP_Name = true, ESP_HP = true, ESP_Tracer = true, ESP_Dist = true,
 ESP_Chams = true, ESP_ChamsColor = Color3.fromRGB(255, 0, 0),
-AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 4, AIM_Part = "Head",
+AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 4,
 AIM_ShowFOV = true,
-SIL_On = false, SIL_Team = false, SIL_Vis = true, SIL_Part = "Head", SIL_FOV = 150, SIL_Chance = 100
+SIL_On = false, SIL_Team = false, SIL_Vis = true, SIL_FOV = 150, SIL_Chance = 100
 }
 
 local ESP_Data = {}
@@ -175,78 +175,102 @@ end
 end)
 
 -- =============================================
--- SILENT - COMPLETE REWRITE
+-- SILENT v3.4 - DOĞRUDAN ATIŞ YÖNÜ DEĞİŞTİRME
 -- =============================================
-local function FindTargetForSilent()
+local function GetSilentTarget()
 return GetTarget(S.SIL_FOV, S.SIL_Team, S.SIL_Vis)
 end
 
--- Hook tüm RemoteEvent ve RemoteFunction'ları
-local OldFireServer
-local OldInvokeServer
+-- 1. Yöntem: Tool / Weapon atışları (Fire, FireServer vb.)
+pcall(function()
+local OldIndex
+OldIndex = hookmetamethod(game, "__index", function(self, Key)
+if S.SIL_On and Key == "Fire" and self:IsA("Tool") then
+local Target = GetSilentTarget()
+if Target and Target.Character then
+local Part = Target.Character:FindFirstChild("Head")
+if Part and math.random(1, 100) <= S.SIL_Chance then
+return function(...)
+local Args = {...}
+if #Args >= 1 and typeof(Args[1]) == "CFrame" then
+Args[1] = CFrame.new(Part.Position)
+elseif #Args >= 1 and typeof(Args[1]) == "Vector3" then
+Args[1] = Part.Position
+end
+return self.Fire(self, unpack(Args))
+end
+end
+end
+end
+return OldIndex(self, Key)
+end)
+end)
 
--- FireServer hook
+-- 2. Yöntem: Projectile / Bullet nesneleri
+pcall(function()
+local OldNewIndex
+OldNewIndex = hookmetamethod(game, "__newindex", function(self, Key, Value)
+if S.SIL_On and Key == "Velocity" and self:IsA("Projectile") then
+local Target = GetSilentTarget()
+if Target and Target.Character then
+local Part = Target.Character:FindFirstChild("Head")
+if Part and math.random(1, 100) <= S.SIL_Chance then
+local Direction = (Part.Position - self.Position).Unit * Value.Magnitude
+return rawset(self, Key, Direction)
+end
+end
+end
+return rawset(self, Key, Value)
+end)
+end)
+
+-- 3. Yöntem: RemoteEvent / FireServer (fallback)
+local OldFireServer
 pcall(function()
 OldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
 local Args = {...}
 local Method = getnamecallmethod()
-
-if S.SIL_On and (Method == "FireServer" or Method == "FireAllClients") then
-local Target = FindTargetForSilent()
+if S.SIL_On and (Method == "FireServer" or Method == "InvokeServer" or Method == "FireAllClients") then
+local Target = GetSilentTarget()
 if Target and Target.Character then
 local Part = Target.Character:FindFirstChild("Head")
 if Part and math.random(1, 100) <= S.SIL_Chance then
--- Argümanları tara ve CFrame/Vector3/Instance pozisyonlarını değiştir
 for i, Arg in ipairs(Args) do
 if typeof(Arg) == "table" and Arg.Position and Arg.Parent then
--- Bu bir Instance (Part) olabilir
 Args[i] = Part
 elseif typeof(Arg) == "CFrame" then
--- CFrame'i hedefin kafasına çevir
 Args[i] = CFrame.new(Part.Position)
 elseif typeof(Arg) == "Vector3" then
--- Vector3'ü hedefin pozisyonuna çevir
 Args[i] = Part.Position
 elseif typeof(Arg) == "table" and Arg.X and Arg.Y and Arg.Z then
--- Vector3 benzeri tablo
 Args[i] = {X = Part.Position.X, Y = Part.Position.Y, Z = Part.Position.Z}
 end
 end
 end
 end
 end
-
 return OldFireServer(self, unpack(Args))
 end)
 end)
 
--- InvokeServer hook (RemoteFunction için)
+-- 4. Yöntem: Mouse click (doğrudan hedefe ateş)
 pcall(function()
-OldInvokeServer = hookmetamethod(game, "__namecall", function(self, ...)
+local OldMouseClick
+OldMouseClick = hookmetamethod(game, "__namecall", function(self, ...)
 local Args = {...}
 local Method = getnamecallmethod()
-
-if S.SIL_On and Method == "InvokeServer" then
-local Target = FindTargetForSilent()
+if S.SIL_On and (Method == "Click" or Method == "Fire") and self:IsA("Mouse") then
+local Target = GetSilentTarget()
 if Target and Target.Character then
 local Part = Target.Character:FindFirstChild("Head")
 if Part and math.random(1, 100) <= S.SIL_Chance then
-for i, Arg in ipairs(Args) do
-if typeof(Arg) == "table" and Arg.Position and Arg.Parent then
-Args[i] = Part
-elseif typeof(Arg) == "CFrame" then
-Args[i] = CFrame.new(Part.Position)
-elseif typeof(Arg) == "Vector3" then
-Args[i] = Part.Position
-elseif typeof(Arg) == "table" and Arg.X and Arg.Y and Arg.Z then
-Args[i] = {X = Part.Position.X, Y = Part.Position.Y, Z = Part.Position.Z}
+if #Args >= 1 and typeof(Args[1]) == "CFrame" then
+Args[1] = CFrame.new(Part.Position)
 end
 end
 end
 end
-end
-
-return OldInvokeServer(self, unpack(Args))
+return OldMouseClick(self, unpack(Args))
 end)
 end)
 
@@ -268,7 +292,7 @@ if not SG or not SG.Parent then
 pcall(function()
 local Billboard = Instance.new("BillboardGui")
 Billboard.Name = "GINSv3_Billboard"
-Billboard.Size = UDim2.new(0, 320, 0, 400)
+Billboard.Size = UDim2.new(0, 320, 0, 420)
 Billboard.AlwaysOnTop = true
 Billboard.Parent = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") or workspace
 SG = Billboard
@@ -288,7 +312,7 @@ Main.Draggable = true
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Title.Text = "GINS v3.3"
+Title.Text = "GINS v3.4"
 Title.TextColor3 = Color3.fromRGB(255,50,50)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -449,7 +473,7 @@ AddSlider(AIM_Page, "Yumusaklik", 1, 20, 4, function(v) S.AIM_Smooth = v end, AY
 AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
 local SY = {0}
-AddToggle(SIL_Page, "Silent Acik (Surekli)", false, function(v) S.SIL_On = v end, SY)
+AddToggle(SIL_Page, "Silent Acik (Tum Atislar)", false, function(v) S.SIL_On = v end, SY)
 AddToggle(SIL_Page, "Takim Kontrol", false, function(v) S.SIL_Team = v end, SY)
 AddToggle(SIL_Page, "Gorunurluk Kontrol", true, function(v) S.SIL_Vis = v end, SY)
 AddSlider(SIL_Page, "FOV", 20, 300, 150, function(v) S.SIL_FOV = v end, SY)
@@ -487,5 +511,5 @@ task.spawn(function()
 while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
 task.wait(0.3)
 CreateGUI()
-print("GINS v3.3 - SILENT tamamen yenilendi, FireServer/InvokeServer destekli")
+print("GINS v3.4 - SILENT: Tool Fire, Projectile Velocity, RemoteEvent ve Mouse Click destekli")
 end)
