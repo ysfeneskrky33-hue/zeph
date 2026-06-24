@@ -1,20 +1,18 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- /////////////// AYARLAR ///////////////
 local Settings = {
     Master = true,
-    Players = true,
-    NPCs = true,
     Boxes = true,
     Names = true,
     Health = true,
     Tracers = true,
-    Distance = true
+    Distance = true,
+    Charms = true  -- Suratlara nokta/kare
 }
 
 -- /////////////// ESP KLASÖRÜ ///////////////
@@ -22,15 +20,15 @@ local ESP_Folder = Instance.new("Folder", CoreGui)
 ESP_Folder.Name = "ESP_System"
 local ESP_List = {}
 
--- /////////////// ANA KONTROL PANELI (SAĞ ÜST) ///////////////
-local function CreateMainGUI()
+-- /////////////// KONTROL PANELI (SAĞ ÜST) ///////////////
+local function CreateGUI()
     local ScreenGui = Instance.new("ScreenGui", CoreGui)
     ScreenGui.Name = "ESP_Panel"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.IgnoreGuiInset = true
     
     local Main = Instance.new("Frame", ScreenGui)
-    Main.Size = UDim2.new(0, 200, 0, 260)
+    Main.Size = UDim2.new(0, 200, 0, 245)
     Main.Position = UDim2.new(1, -210, 0.25, 0)
     Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     Main.BorderSizePixel = 0
@@ -69,7 +67,7 @@ local function CreateMainGUI()
             Main.Size = UDim2.new(0, 200, 0, 28)
             CloseBtn.Text = "+"
         else
-            Main.Size = UDim2.new(0, 200, 0, 260)
+            Main.Size = UDim2.new(0, 200, 0, 245)
             CloseBtn.Text = "-"
         end
     end)
@@ -112,133 +110,76 @@ local function CreateMainGUI()
             Callback(State)
         end)
         Y = Y + 25
-        return Toggle, Label
+        return Toggle
     end
     
     AddToggle("ESP Acik/Kapali", true, function(v) Settings.Master = v end)
-    AddToggle("Oyuncu ESP", true, function(v) Settings.Players = v end)
-    AddToggle("NPC ESP (Sari)", true, function(v) Settings.NPCs = v end)
     AddToggle("Kutular", true, function(v) Settings.Boxes = v end)
     AddToggle("Isimler", true, function(v) Settings.Names = v end)
     AddToggle("Can Bari", true, function(v) Settings.Health = v end)
     AddToggle("Cizgiler", true, function(v) Settings.Tracers = v end)
     AddToggle("Mesafe", true, function(v) Settings.Distance = v end)
+    AddToggle("CHARMS (Surat)", true, function(v) Settings.Charms = v end)
     
     Scroll.CanvasSize = UDim2.new(0, 0, 0, Y + 5)
 end
 
--- /////////////// DOKUNMATIK HIZLI BUTONLAR (SOL ALT) ///////////////
-local function CreateTouchButtons()
-    local TouchGui = Instance.new("ScreenGui", CoreGui)
-    TouchGui.Name = "ESP_TouchButtons"
-    TouchGui.ResetOnSpawn = false
-    TouchGui.IgnoreGuiInset = true
-    TouchGui.DisplayOrder = 999
-    
-    -- Arka plan çerçevesi
-    local BG = Instance.new("Frame", TouchGui)
-    BG.Size = UDim2.new(0, 220, 0, 55)
-    BG.Position = UDim2.new(0, 10, 1, -65)
-    BG.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    BG.BackgroundTransparency = 0.4
-    BG.BorderSizePixel = 0
-    BG.Active = true
-    BG.Draggable = true
-    
-    local function CreateButton(Text, XPos, Default, Callback)
-        local Btn = Instance.new("TextButton", BG)
-        Btn.Size = UDim2.new(0, 50, 0, 45)
-        Btn.Position = UDim2.new(0, XPos, 0, 5)
-        Btn.BackgroundColor3 = Default and Color3.fromRGB(0, 140, 0) or Color3.fromRGB(140, 0, 0)
-        Btn.BorderSizePixel = 0
-        Btn.Text = Text
-        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Btn.Font = Enum.Font.GothamBold
-        Btn.TextSize = 11
-        Btn.AutoButtonColor = false
-        
-        local State = Default
-        Btn.MouseButton1Click:Connect(function()
-            State = not State
-            Btn.BackgroundColor3 = State and Color3.fromRGB(0, 140, 0) or Color3.fromRGB(140, 0, 0)
-            Callback(State)
-        end)
-        -- Dokunmatik için
-        Btn.TouchTap:Connect(function()
-            State = not State
-            Btn.BackgroundColor3 = State and Color3.fromRGB(0, 140, 0) or Color3.fromRGB(140, 0, 0)
-            Callback(State)
-        end)
-        return Btn
-    end
-    
-    -- Buton 1: UZAKLIK
-    CreateButton("UZAKLIK", 5, true, function(v) Settings.Distance = v end)
-    -- Buton 2: CHARM (Can barı)
-    CreateButton("CAN", 60, true, function(v) Settings.Health = v end)
-    -- Buton 3: ISIM
-    CreateButton("ISIM", 115, true, function(v) Settings.Names = v end)
-    -- Buton 4: ESP AÇ/KAPA
-    CreateButton("ESP", 170, true, function(v) Settings.Master = v end)
-    
-    -- Başlık
-    local TitleLabel = Instance.new("TextLabel", BG)
-    TitleLabel.Size = UDim2.new(1, 0, 0, 14)
-    TitleLabel.Position = UDim2.new(0, 0, 1, -2)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = "HIZLI KONTROL | SURUKLENEBILIR"
-    TitleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    TitleLabel.Font = Enum.Font.Gotham
-    TitleLabel.TextSize = 9
-    TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
-end
-
--- /////////////// ESP FONKSİYONU ///////////////
-local function CreateESP(Target)
-    local Char = Target.Character
+-- /////////////// ESP OLUŞTUR ///////////////
+local function CreateESP(Plr)
+    local Char = Plr.Character
     if not Char then return end
     local Root = Char:FindFirstChild("HumanoidRootPart")
     local Head = Char:FindFirstChild("Head")
     local Hum = Char:FindFirstChild("Humanoid")
     if not Root or not Head or not Hum then return end
     
-    if ESP_List[Target] then
-        for _, v in pairs(ESP_List[Target]) do
+    if ESP_List[Plr] then
+        for _, v in pairs(ESP_List[Plr]) do
             if v and v.Remove then v:Remove() end
         end
     end
-    ESP_List[Target] = {}
-    local Obj = ESP_List[Target]
+    ESP_List[Plr] = {}
+    local Obj = ESP_List[Plr]
     
     if Drawing then
+        -- Kutu
         Obj.Box = Drawing.new("Square")
         Obj.Box.Thickness = 1
         Obj.Box.Filled = false
+        Obj.Box.Color = Color3.fromRGB(255, 255, 255)
         Obj.Box.Visible = false
         
+        -- İsim
         Obj.Name = Drawing.new("Text")
         Obj.Name.Size = 13
         Obj.Name.Center = true
         Obj.Name.Outline = true
+        Obj.Name.Color = Color3.fromRGB(255, 255, 255)
         Obj.Name.Visible = false
         
+        -- Can barı arka plan
         Obj.HPbg = Drawing.new("Square")
         Obj.HPbg.Filled = true
+        Obj.HPbg.Color = Color3.new(0, 0, 0)
         Obj.HPbg.Visible = false
         
+        -- Can barı
         Obj.HP = Drawing.new("Square")
         Obj.HP.Filled = true
         Obj.HP.Visible = false
         
+        -- Çizgi
         Obj.Tracer = Drawing.new("Line")
         Obj.Tracer.Thickness = 1
+        Obj.Tracer.Color = Color3.fromRGB(255, 255, 255)
         Obj.Tracer.Visible = false
+        
+        -- CHARMS: Suratta içi dolu kare (Head DOT)
+        Obj.Charm = Drawing.new("Square")
+        Obj.Charm.Filled = true
+        Obj.Charm.Color = Color3.fromRGB(255, 0, 0)
+        Obj.Charm.Visible = false
     end
-    
-    local IsNPC = false
-    pcall(function()
-        IsNPC = not Players:GetPlayerFromCharacter(Char)
-    end)
     
     local Conn
     Conn = RunService.RenderStepped:Connect(function()
@@ -246,23 +187,17 @@ local function CreateESP(Target)
             for _, v in pairs(Obj) do if v then v.Visible = false end end
             return
         end
-        if IsNPC and not Settings.NPCs then
-            for _, v in pairs(Obj) do if v then v.Visible = false end end
-            return
-        end
-        if not IsNPC and not Settings.Players then
-            for _, v in pairs(Obj) do if v then v.Visible = false end end
-            return
-        end
-        if not Char or not Char.Parent or not Root or not Root.Parent then
+        if not Char or not Char.Parent or not Root or not Root.Parent or not Head or not Head.Parent then
             Conn:Disconnect()
             for _, v in pairs(Obj) do if v and v.Remove then v:Remove() end end
-            ESP_List[Target] = nil
+            ESP_List[Plr] = nil
             return
         end
         
-        local Pos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
-        if not OnScreen then
+        local RootPos, RootOnScreen = Camera:WorldToViewportPoint(Root.Position)
+        local HeadPos, HeadOnScreen = Camera:WorldToViewportPoint(Head.Position)
+        
+        if not RootOnScreen then
             for _, v in pairs(Obj) do if v then v.Visible = false end end
             return
         end
@@ -272,34 +207,45 @@ local function CreateESP(Target)
         local H = math.abs((Head.Position.Y - Root.Position.Y) * 2.5) * Scale
         local W = H / 2
         
+        -- CHARMS: Surata kırmızı kare (Head pozisyonunda)
+        if Settings.Charms and Obj.Charm and HeadOnScreen then
+            local CharmSize = 8
+            Obj.Charm.Position = Vector2.new(HeadPos.X - CharmSize/2, HeadPos.Y - CharmSize/2)
+            Obj.Charm.Size = Vector2.new(CharmSize, CharmSize)
+            Obj.Charm.Color = Color3.fromRGB(255, 0, 0)
+            Obj.Charm.Visible = true
+        elseif Obj.Charm then
+            Obj.Charm.Visible = false
+        end
+        
+        -- Kutu
         if Settings.Boxes and Obj.Box then
-            Obj.Box.Position = Vector2.new(Pos.X - W/2, Pos.Y - H/2)
+            Obj.Box.Position = Vector2.new(RootPos.X - W/2, RootPos.Y - H/2)
             Obj.Box.Size = Vector2.new(W, H)
-            Obj.Box.Color = IsNPC and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 255, 255)
             Obj.Box.Visible = true
         elseif Obj.Box then
             Obj.Box.Visible = false
         end
         
+        -- İsim
         if Settings.Names and Obj.Name then
-            local Txt = Target.Name
+            local Txt = Plr.Name
             if Settings.Distance then Txt = Txt .. " [" .. math.floor(Dist) .. "m]" end
             Obj.Name.Text = Txt
-            Obj.Name.Position = Vector2.new(Pos.X, Pos.Y - H/2 - 15)
-            Obj.Name.Color = IsNPC and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 255, 255)
+            Obj.Name.Position = Vector2.new(RootPos.X, RootPos.Y - H/2 - 15)
             Obj.Name.Visible = true
         elseif Obj.Name then
             Obj.Name.Visible = false
         end
         
-        if Settings.Health and Obj.HP and not IsNPC then
+        -- Can barı
+        if Settings.Health and Obj.HP then
             local HP = Hum.Health / Hum.MaxHealth
             local BH = H * HP
-            Obj.HPbg.Position = Vector2.new(Pos.X - W/2 - 6, Pos.Y - H/2)
+            Obj.HPbg.Position = Vector2.new(RootPos.X - W/2 - 6, RootPos.Y - H/2)
             Obj.HPbg.Size = Vector2.new(3, H)
-            Obj.HPbg.Color = Color3.new(0, 0, 0)
             Obj.HPbg.Visible = true
-            Obj.HP.Position = Vector2.new(Pos.X - W/2 - 6, Pos.Y + H/2 - BH)
+            Obj.HP.Position = Vector2.new(RootPos.X - W/2 - 6, RootPos.Y + H/2 - BH)
             Obj.HP.Size = Vector2.new(3, BH)
             Obj.HP.Color = Color3.new(1 - HP, HP, 0)
             Obj.HP.Visible = true
@@ -308,10 +254,10 @@ local function CreateESP(Target)
             Obj.HPbg.Visible = false
         end
         
-        if Settings.Tracers and Obj.Tracer and not IsNPC then
+        -- Çizgi
+        if Settings.Tracers and Obj.Tracer then
             Obj.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-            Obj.Tracer.To = Vector2.new(Pos.X, Pos.Y + H/2)
-            Obj.Tracer.Color = Color3.fromRGB(255, 255, 255)
+            Obj.Tracer.To = Vector2.new(RootPos.X, RootPos.Y + H/2)
             Obj.Tracer.Visible = true
         elseif Obj.Tracer then
             Obj.Tracer.Visible = false
@@ -338,34 +284,6 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
--- /////////////// NPC TAKİBİ ///////////////
-task.spawn(function()
-    while task.wait(2) do
-        if not Settings.Master or not Settings.NPCs then continue end
-        for _, Obj in ipairs(workspace:GetDescendants()) do
-            if Obj:IsA("Model") and Obj:FindFirstChild("Humanoid") and Obj:FindFirstChild("Head") then
-                local IsPlr = false
-                pcall(function() IsPlr = Players:GetPlayerFromCharacter(Obj) ~= nil end)
-                if not IsPlr and not ESP_List[Obj] then
-                    local Fake = {Name = Obj.Name, Character = Obj}
-                    CreateESP(Fake)
-                end
-            end
-        end
-    end
-end)
-
--- /////////////// RESPAWN TEMİZLİK ///////////////
-LocalPlayer.CharacterAdded:Connect(function()
-    for Target, Objs in pairs(ESP_List) do
-        if typeof(Target) == "Instance" and not Target:IsA("Player") then
-            for _, v in pairs(Objs) do if v and v.Remove then v:Remove() end end
-            ESP_List[Target] = nil
-        end
-    end
-end)
-
 -- /////////////// BAŞLAT ///////////////
-CreateMainGUI()
-CreateTouchButtons()
-print("ESP Yuklendi | Uzaklik/Charm/Isim Dokunmatik Butonlari Sol Altta | Panel Sag Ustte")
+CreateGUI()
+print("ESP + CHARMS Yuklendi | Suratlarda Kirmizi Nokta | NPC Kaldirildi | Panel Sag Ustte")
