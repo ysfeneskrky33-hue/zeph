@@ -1,494 +1,350 @@
-local Oyuncular = game:GetService("Players")
-local YerelOyuncu = Oyuncular.LocalPlayer
-local Kamera = workspace.CurrentCamera
-local Calisiyor = true
-local RastgeleID = math.random(100000, 999999)
+-- Roblox ESP Scripti - GUI Kontrol Panelli Versiyon
+-- Yürütücü: Lua Executor (Synapse X, Script-Ware, KRNL vb.)
+-- Açıklama: Açılır kapanır GUI paneli ile ESP özelliklerini anlık kontrol eder.
 
--- ESP Aktif/Pasif Değişkenleri
-local ESP_Aktif = true
-local Kutu_Aktif = true
-local Isim_Aktif = true
-local SaglikBari_Aktif = true
-local Vurgu_Aktif = true
-local Mesafe_Aktif = true
-local DostRenk = Color3.fromRGB(50, 255, 50)
-local DusmanRenk = Color3.fromRGB(255, 50, 50)
+-- 1. Gerekli servisler ve temel değişkenler
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
--- ESP Veri Deposu
-local ESP_Listesi = {}
+-- 2. ESP Veri deposu ve ayarlar
+local ESP_Holder = Instance.new("Folder")
+ESP_Holder.Name = "ESP_Data"
+ESP_Holder.Parent = CoreGui
 
--- Ana ESP Ekranı (PlayerGui)
-local ESP_Ekran = Instance.new("ScreenGui")
-ESP_Ekran.Name = "FLUXO_GUI_" .. RastgeleID
-ESP_Ekran.Parent = YerelOyuncu:WaitForChild("PlayerGui")
-ESP_Ekran.ResetOnSpawn = false
-ESP_Ekran.Enabled = true
+local ESP_Connections = {}
+local TrackedCharacters = {}
 
--- // GUI KONTROL PANELİ \ --
-local AnaPanel = Instance.new("ScreenGui")
-AnaPanel.Name = "ESP_KONTROL_" .. RastgeleID
-AnaPanel.Parent = game.CoreGui:FindFirstChild("RobloxGui") and game.CoreGui.RobloxGui or YerelOyuncu:WaitForChild("PlayerGui")
-AnaPanel.ResetOnSpawn = false
-
-local AnaCerceve = Instance.new("Frame")
-AnaCerceve.Name = "AnaCerceve"
-AnaCerceve.Size = UDim2.new(0, 280, 0, 340)
-AnaCerceve.Position = UDim2.new(0.01, 0, 0.15, 0)
-AnaCerceve.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-AnaCerceve.BorderSizePixel = 0
-AnaCerceve.Active = true
-AnaCerceve.Draggable = true
-AnaCerceve.Parent = AnaPanel
-
--- Kenarlık
-local Kenarlik = Instance.new("Frame")
-Kenarlik.Size = UDim2.new(1, 4, 1, 4)
-Kenarlik.Position = UDim2.new(0, -2, 0, -2)
-Kenarlik.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-Kenarlik.BorderSizePixel = 0
-Kenarlik.BackgroundTransparency = 0.5
-Kenarlik.ZIndex = 0
-Kenarlik.Parent = AnaCerceve
-
--- Başlık
-local Baslik = Instance.new("TextLabel")
-Baslik.Text = "FLUXO ESP | v1.0"
-Baslik.Size = UDim2.new(1, 0, 0, 30)
-Baslik.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Baslik.TextColor3 = Color3.fromRGB(0, 255, 120)
-Baslik.Font = Enum.Font.Code
-Baslik.TextSize = 14
-Baslik.BorderSizePixel = 0
-Baslik.Parent = AnaCerceve
-
--- Kapatma Butonu
-local KapatButon = Instance.new("TextButton")
-KapatButon.Text = "X"
-KapatButon.Size = UDim2.new(0, 30, 0, 30)
-KapatButon.Position = UDim2.new(1, -30, 0, 0)
-KapatButon.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
-KapatButon.TextColor3 = Color3.new(1,1,1)
-KapatButon.Font = Enum.Font.Code
-KapatButon.TextSize = 16
-KapatButon.BorderSizePixel = 0
-KapatButon.Parent = AnaCerceve
-
--- Gizle/Göster Butonu
-local GizleButon = Instance.new("TextButton")
-GizleButon.Text = "-"
-GizleButon.Size = UDim2.new(0, 30, 0, 30)
-GizleButon.Position = UDim2.new(1, -60, 0, 0)
-GizleButon.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-GizleButon.TextColor3 = Color3.new(1,1,1)
-GizleButon.Font = Enum.Font.Code
-GizleButon.TextSize = 16
-GizleButon.BorderSizePixel = 0
-GizleButon.Parent = AnaCerceve
-
--- İçerik Alanı
-local IcerikAlani = Instance.new("ScrollingFrame")
-IcerikAlani.Size = UDim2.new(1, -10, 1, -40)
-IcerikAlani.Position = UDim2.new(0, 5, 0, 35)
-IcerikAlani.BackgroundTransparency = 1
-IcerikAlani.BorderSizePixel = 0
-IcerikAlani.ScrollBarThickness = 4
-IcerikAlani.CanvasSize = UDim2.new(0, 0, 0, 620)
-IcerikAlani.Parent = AnaCerceve
-
--- // YARDIMCI FONKSİYONLAR \ --
-local function ButonOlustur(Isim, Y, Ebeveyn)
-local Buton = Instance.new("TextButton")
-Buton.Text = Isim
-Buton.Size = UDim2.new(1, -10, 0, 28)
-Buton.Position = UDim2.new(0, 5, 0, Y)
-Buton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Buton.TextColor3 = Color3.new(1,1,1)
-Buton.Font = Enum.Font.Code
-Buton.TextSize = 12
-Buton.BorderSizePixel = 0
-Buton.AutoButtonColor = true
-Buton.Parent = Ebeveyn
-return Buton
-end
-
-local function EtiketOlustur(Metin, Y, Ebeveyn, Renk)
-local Etiket = Instance.new("TextLabel")
-Etiket.Text = Metin
-Etiket.Size = UDim2.new(1, -10, 0, 18)
-Etiket.Position = UDim2.new(0, 5, 0, Y)
-Etiket.BackgroundTransparency = 1
-Etiket.TextColor3 = Renk or Color3.new(1,1,1)
-Etiket.Font = Enum.Font.Code
-Etiket.TextSize = 11
-Etiket.TextXAlignment = Enum.TextXAlignment.Left
-Etiket.Parent = Ebeveyn
-return Etiket
-end
-
--- // GUI BUTONLARI VE AYARLAR \ --
-local y_offset = 5
-
-EtiketOlustur("=== GENEL AYARLAR ===", y_offset, IcerikAlani, Color3.fromRGB(0, 200, 255))
-y_offset = y_offset + 22
-
--- ESP Aç/Kapa Butonu
-local ESButon = ButonOlustur("ESP: ACIK", y_offset, IcerikAlani)
-ESButon.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-y_offset = y_offset + 32
-
--- Kutu ESP Aç/Kapa
-local KutuButon = ButonOlustur("KUTU: ACIK", y_offset, IcerikAlani)
-KutuButon.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-y_offset = y_offset + 32
-
--- İsim ESP Aç/Kapa
-local IsimButon = ButonOlustur("ISIM: ACIK", y_offset, IcerikAlani)
-IsimButon.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-y_offset = y_offset + 32
-
--- Sağlık Barı Aç/Kapa
-local SaglikButon = ButonOlustur("SAGLIK BARI: ACIK", y_offset, IcerikAlani)
-SaglikButon.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-y_offset = y_offset + 32
-
--- Vurgu Aç/Kapa
-local VurguButon = ButonOlustur("VURGU: ACIK", y_offset, IcerikAlani)
-VurguButon.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-y_offset = y_offset + 32
-
--- Mesafe Gösterimi Aç/Kapa
-local MesafeButon = ButonOlustur("MESAFE: ACIK", y_offset, IcerikAlani)
-MesafeButon.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-y_offset = y_offset + 40
-
-EtiketOlustur("=== RENK AYARLARI ===", y_offset, IcerikAlani, Color3.fromRGB(255, 200, 50))
-y_offset = y_offset + 22
-
--- Düşman Rengi
-EtiketOlustur("Dusman Rengi:", y_offset, IcerikAlani, Color3.fromRGB(255, 100, 100))
-y_offset = y_offset + 16
-
-local DusmanKirmizi = ButonOlustur("KIRMIZI [SEÇILI]", y_offset, IcerikAlani)
-DusmanKirmizi.BackgroundColor3 = Color3.fromRGB(200, 30, 30)
-y_offset = y_offset + 28
-
-local DusmanMavi = ButonOlustur("MAVI", y_offset, IcerikAlani)
-DusmanMavi.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-y_offset = y_offset + 28
-
-local DusmanSari = ButonOlustur("SARI", y_offset, IcerikAlani)
-DusmanSari.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-y_offset = y_offset + 28
-
-local DusmanMor = ButonOlustur("MOR", y_offset, IcerikAlani)
-DusmanMor.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-y_offset = y_offset + 35
-
--- Dost Rengi
-EtiketOlustur("Dost Rengi:", y_offset, IcerikAlani, Color3.fromRGB(100, 255, 100))
-y_offset = y_offset + 16
-
-local DostYesil = ButonOlustur("YESIL [SEÇILI]", y_offset, IcerikAlani)
-DostYesil.BackgroundColor3 = Color3.fromRGB(30, 200, 30)
-y_offset = y_offset + 28
-
-local DostMavi = ButonOlustur("MAVI", y_offset, IcerikAlani)
-DostMavi.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-y_offset = y_offset + 28
-
-local DostBeyaz = ButonOlustur("BEYAZ", y_offset, IcerikAlani)
-DostBeyaz.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-y_offset = y_offset + 28
-
-local DostTuruncu = ButonOlustur("TURUNCU", y_offset, IcerikAlani)
-DostTuruncu.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-y_offset = y_offset + 35
-
--- ESP'yi Sıfırla Butonu
-local SifirlaButon = ButonOlustur("TUM ESP'YI YENIDEN BASLAT", y_offset, IcerikAlani)
-SifirlaButon.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-y_offset = y_offset + 40
-
--- Kredi
-EtiketOlustur("palo | Fluxo Bypass", y_offset, IcerikAlani, Color3.fromRGB(100, 100, 100))
-
-IcerikAlani.CanvasSize = UDim2.new(0, 0, 0, y_offset + 20)
-
--- // BUTON FONKSİYONLARI \ --
-local function ButonGuncelle(Buton, Durum, MetinAcik, MetinKapali)
-if Durum then
-Buton.Text = MetinAcik
-Buton.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-else
-Buton.Text = MetinKapali
-Buton.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
-end
-end
-
-ESButon.MouseButton1Click:Connect(function()
-ESP_Aktif = not ESP_Aktif
-ButonGuncelle(ESButon, ESP_Aktif, "ESP: ACIK", "ESP: KAPALI")
-end)
-
-KutuButon.MouseButton1Click:Connect(function()
-Kutu_Aktif = not Kutu_Aktif
-ButonGuncelle(KutuButon, Kutu_Aktif, "KUTU: ACIK", "KUTU: KAPALI")
-for _, Veri in pairs(ESP_Listesi) do
-if Veri.KutuGovde then Veri.KutuGovde.Enabled = Kutu_Aktif end
-end
-end)
-
-IsimButon.MouseButton1Click:Connect(function()
-Isim_Aktif = not Isim_Aktif
-ButonGuncelle(IsimButon, Isim_Aktif, "ISIM: ACIK", "ISIM: KAPALI")
-for _, Veri in pairs(ESP_Listesi) do
-if Veri.IsimEtiketi then Veri.IsimEtiketi.Enabled = Isim_Aktif end
-end
-end)
-
-SaglikButon.MouseButton1Click:Connect(function()
-SaglikBari_Aktif = not SaglikBari_Aktif
-ButonGuncelle(SaglikButon, SaglikBari_Aktif, "SAGLIK BARI: ACIK", "SAGLIK BARI: KAPALI")
-for _, Veri in pairs(ESP_Listesi) do
-if Veri.SaglikBarArka then Veri.SaglikBarArka.Visible = SaglikBari_Aktif end
-end
-end)
-
-VurguButon.MouseButton1Click:Connect(function()
-Vurgu_Aktif = not Vurgu_Aktif
-ButonGuncelle(VurguButon, Vurgu_Aktif, "VURGU: ACIK", "VURGU: KAPALI")
-for _, Veri in pairs(ESP_Listesi) do
-if Veri.VurguGovde then Veri.VurguGovde.Enabled = Vurgu_Aktif end
-end
-end)
-
-MesafeButon.MouseButton1Click:Connect(function()
-Mesafe_Aktif = not Mesafe_Aktif
-ButonGuncelle(MesafeButon, Mesafe_Aktif, "MESAFE: ACIK", "MESAFE: KAPALI")
-end)
-
--- Renk Butonları
-local SeciliDusmanButon = DusmanKirmizi
-local SeciliDostButon = DostYesil
-
-local function DusmanRenkSec(Buton, Renk)
-SeciliDusmanButon.Text = SeciliDusmanButon.Text:gsub(" %[SEÇILI%]", "")
-SeciliDusmanButon.BackgroundColor3 = Color3.fromRGB(35,35,35)
-Buton.Text = Buton.Text:gsub(" %[SEÇILI%]", "") .. " [SEÇILI]"
-Buton.BackgroundColor3 = Renk
-SeciliDusmanButon = Buton
-DusmanRenk = Renk
-end
-
-local function DostRenkSec(Buton, Renk)
-SeciliDostButon.Text = SeciliDostButon.Text:gsub(" %[SEÇILI%]", "")
-SeciliDostButon.BackgroundColor3 = Color3.fromRGB(35,35,35)
-Buton.Text = Buton.Text:gsub(" %[SEÇILI%]", "") .. " [SEÇILI]"
-Buton.BackgroundColor3 = Renk
-SeciliDostButon = Buton
-DostRenk = Renk
-end
-
-DusmanKirmizi.MouseButton1Click:Connect(function() DusmanRenkSec(DusmanKirmizi, Color3.fromRGB(255, 50, 50)) end)
-DusmanMavi.MouseButton1Click:Connect(function() DusmanRenkSec(DusmanMavi, Color3.fromRGB(50, 100, 255)) end)
-DusmanSari.MouseButton1Click:Connect(function() DusmanRenkSec(DusmanSari, Color3.fromRGB(255, 255, 50)) end)
-DusmanMor.MouseButton1Click:Connect(function() DusmanRenkSec(DusmanMor, Color3.fromRGB(180, 50, 255)) end)
-
-DostYesil.MouseButton1Click:Connect(function() DostRenkSec(DostYesil, Color3.fromRGB(50, 255, 50)) end)
-DostMavi.MouseButton1Click:Connect(function() DostRenkSec(DostMavi, Color3.fromRGB(50, 100, 255)) end)
-DostBeyaz.MouseButton1Click:Connect(function() DostRenkSec(DostBeyaz, Color3.fromRGB(255, 255, 255)) end)
-DostTuruncu.MouseButton1Click:Connect(function() DostRenkSec(DostTuruncu, Color3.fromRGB(255, 150, 50)) end)
-
-SifirlaButon.MouseButton1Click:Connect(function()
-for Hedef, _ in pairs(ESP_Listesi) do
-ESP_Sil(Hedef)
-end
-wait(0.2)
-for _, Hedef in pairs(Oyuncular:GetPlayers()) do
-if OyuncuGecerliMi(Hedef) then
-ESP_Olustur(Hedef)
-end
-end
-end)
-
-KapatButon.MouseButton1Click:Connect(function()
-AnaPanel:Destroy()
-getgenv().ESP_Kapat()
-end)
-
-local PanelGizli = false
-GizleButon.MouseButton1Click:Connect(function()
-PanelGizli = not PanelGizli
-IcerikAlani.Visible = not PanelGizli
-GizleButon.Text = PanelGizli and "+" or "-"
-AnaCerceve.Size = PanelGizli and UDim2.new(0, 280, 0, 35) or UDim2.new(0, 280, 0, 340)
-end)
-
--- // ESP FONKSİYONLARI (GUI Kontrolleriyle Entegre) \ --
-local function OyuncuGecerliMi(Hedef)
-return Hedef and Hedef ~= YerelOyuncu and Hedef.Character and Hedef.Character:FindFirstChild("Humanoid") and Hedef.Character:FindFirstChild("Head") and Hedef.Character.Humanoid.Health > 0
-end
-
-function ESP_Olustur(Hedef)
-if ESP_Listesi[Hedef] then return end
-local Veri = {}
-local Karakter = Hedef.Character
-local Govde = Karakter:WaitForChild("HumanoidRootPart") or Karakter:FindFirstChild("UpperTorso")
-
--- Kutu Govde
-local KutuGovde = Instance.new("BillboardGui")
-KutuGovde.Name = "ESP_Kutu_" .. RastgeleID
-KutuGovde.Size = UDim2.new(0, 0, 0, 0)
-KutuGovde.StudsOffset = Vector3.new(0, -2.8, 0)
-KutuGovde.AlwaysOnTop = true
-KutuGovde.MaxDistance = 2000
-KutuGovde.Enabled = Kutu_Aktif
-KutuGovde.Parent = Govde or Karakter.Head
-
-local UstCizgi = Instance.new("Frame"); UstCizgi.BackgroundColor3 = Color3.fromRGB(255,50,50); UstCizgi.BorderSizePixel = 0; UstCizgi.Parent = KutuGovde
-local AltCizgi = Instance.new("Frame"); AltCizgi.BackgroundColor3 = Color3.fromRGB(255,50,50); AltCizgi.BorderSizePixel = 0; AltCizgi.Parent = KutuGovde
-local SolCizgi = Instance.new("Frame"); SolCizgi.BackgroundColor3 = Color3.fromRGB(255,50,50); SolCizgi.BorderSizePixel = 0; SolCizgi.Parent = KutuGovde
-local SagCizgi = Instance.new("Frame"); SagCizgi.BackgroundColor3 = Color3.fromRGB(255,50,50); SagCizgi.BorderSizePixel = 0; SagCizgi.Parent = KutuGovde
-
-local SaglikBarArka = Instance.new("Frame"); SaglikBarArka.BackgroundColor3 = Color3.fromRGB(0,0,0); SaglikBarArka.BorderSizePixel = 0; SaglikBarArka.BackgroundTransparency = 0.5; SaglikBarArka.Visible = SaglikBari_Aktif; SaglikBarArka.Parent = KutuGovde
-local SaglikBarDolgu = Instance.new("Frame"); SaglikBarDolgu.BackgroundColor3 = Color3.fromRGB(0,255,80); SaglikBarDolgu.BorderSizePixel = 0; SaglikBarDolgu.Parent = SaglikBarArka
-
--- İsim
-local IsimEtiketi = Instance.new("BillboardGui")
-IsimEtiketi.Name = "ESP_Isim_" .. RastgeleID
-IsimEtiketi.Size = UDim2.new(0, 250, 0, 45)
-IsimEtiketi.StudsOffset = Vector3.new(0, 2.5, 0)
-IsimEtiketi.AlwaysOnTop = true
-IsimEtiketi.MaxDistance = 2000
-IsimEtiketi.Enabled = Isim_Aktif
-IsimEtiketi.Parent = Karakter.Head
-
-local EtiketMetni = Instance.new("TextLabel")
-EtiketMetni.Size = UDim2.new(1,0,1,0); EtiketMetni.BackgroundTransparency = 1; EtiketMetni.TextColor3 = Color3.new(1,1,1)
-EtiketMetni.TextStrokeTransparency = 0.4; EtiketMetni.TextStrokeColor3 = Color3.new(0,0,0)
-EtiketMetni.Font = Enum.Font.Code; EtiketMetni.TextSize = 11; EtiketMetni.Parent = IsimEtiketi
-
--- Vurgu
-local VurguGovde = Instance.new("BillboardGui")
-VurguGovde.Name = "ESP_Vurgu_" .. RastgeleID
-VurguGovde.Size = UDim2.new(0,0,0,0); VurguGovde.AlwaysOnTop = false; VurguGovde.MaxDistance = 500
-VurguGovde.LightInfluence = 0; VurguGovde.Enabled = Vurgu_Aktif
-VurguGovde.Parent = Govde or Karakter.Head
-
-local VurguCerceve = Instance.new("Frame")
-VurguCerceve.BackgroundTransparency = 0.7; VurguCerceve.BackgroundColor3 = Color3.fromRGB(255,50,50)
-VurguCerceve.BorderSizePixel = 2; VurguCerceve.BorderColor3 = Color3.fromRGB(255,50,50); VurguCerceve.Parent = VurguGovde
-
-Veri = {
-KutuGovde = KutuGovde, UstCizgi = UstCizgi, AltCizgi = AltCizgi, SolCizgi = SolCizgi, SagCizgi = SagCizgi,
-SaglikBarArka = SaglikBarArka, SaglikBarDolgu = SaglikBarDolgu,
-IsimEtiketi = IsimEtiketi, EtiketMetni = EtiketMetni,
-VurguGovde = VurguGovde, VurguCerceve = VurguCerceve
+local Settings = {
+    MasterEnabled = true,
+    Players = {
+        Enabled = true,
+        ShowBox = true,
+        ShowName = true,
+        ShowHealth = true,
+        ShowDistance = true,
+        ShowTracers = true,
+        BoxColor = Color3.fromRGB(255, 255, 255),
+        NameColor = Color3.fromRGB(255, 255, 255),
+        TracerColor = Color3.fromRGB(255, 255, 255)
+    },
+    NPCs = {
+        Enabled = true,
+        ShowBox = true,
+        ShowName = true,
+        BoxColor = Color3.fromRGB(255, 255, 0),
+        NameColor = Color3.fromRGB(255, 255, 0)
+    }
 }
-ESP_Listesi[Hedef] = Veri
+
+-- 3. GUI Oluşturma Fonksiyonu (ScreenGui tabanlı)
+local function CreateGUI()
+    -- 3a. Ana ScreenGui
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ESP_Control_Panel"
+    ScreenGui.Parent = CoreGui
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.IgnoreGuiInset = true
+
+    -- 3b. Ana Panel (Sağ üst köşede)
+    local MainPanel = Instance.new("Frame")
+    MainPanel.Name = "MainPanel"
+    MainPanel.Size = UDim2.new(0, 220, 0, 300)
+    MainPanel.Position = UDim2.new(1, -230, 0.3, 0)
+    MainPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    MainPanel.BorderSizePixel = 0
+    MainPanel.Active = true
+    MainPanel.Draggable = true
+    MainPanel.Parent = ScreenGui
+
+    -- 3c. Başlık Çubuğu
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Size = UDim2.new(1, 0, 0, 30)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Parent = MainPanel
+    local TitleText = Instance.new("TextLabel")
+    TitleText.Size = UDim2.new(1, -10, 1, 0)
+    TitleText.Position = UDim2.new(0, 10, 0, 0)
+    TitleText.BackgroundTransparency = 1
+    TitleText.Text = "ESP Kontrol Paneli"
+    TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleText.Font = Enum.Font.GothamBold
+    TitleText.TextSize = 14
+    TitleText.TextXAlignment = Enum.TextXAlignment.Left
+    TitleText.Parent = TitleBar
+
+    -- 3d. Aç/Kapat Butonu (Başlıkta sağda)
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Size = UDim2.new(0, 30, 0, 30)
+    CloseButton.Position = UDim2.new(1, -30, 0, 0)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    CloseButton.Text = "-"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.Font = Enum.Font.GothamBold
+    CloseButton.TextSize = 18
+    CloseButton.Parent = TitleBar
+    local PanelMinimized = false
+    CloseButton.MouseButton1Click:Connect(function()
+        PanelMinimized = not PanelMinimized
+        if PanelMinimized then
+            MainPanel.Size = UDim2.new(0, 220, 0, 30)
+            CloseButton.Text = "+"
+        else
+            MainPanel.Size = UDim2.new(0, 220, 0, 300)
+            CloseButton.Text = "-"
+        end
+    end)
+
+    -- 3e. ScrollFrame (İçerik için)
+    local ScrollFrame = Instance.new("ScrollingFrame")
+    ScrollFrame.Size = UDim2.new(1, -10, 1, -35)
+    ScrollFrame.Position = UDim2.new(0, 5, 0, 35)
+    ScrollFrame.BackgroundTransparency = 1
+    ScrollFrame.BorderSizePixel = 0
+    ScrollFrame.ScrollBarThickness = 5
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
+    ScrollFrame.Parent = MainPanel
+
+    local YOffset = 0
+    local function AddToggle(Text, Callback, Default)
+        local ToggleFrame = Instance.new("Frame")
+        ToggleFrame.Size = UDim2.new(1, 0, 0, 25)
+        ToggleFrame.Position = UDim2.new(0, 0, 0, YOffset)
+        ToggleFrame.BackgroundTransparency = 1
+        ToggleFrame.Parent = ScrollFrame
+        local Label = Instance.new("TextLabel")
+        Label.Size = UDim2.new(0.7, 0, 1, 0)
+        Label.BackgroundTransparency = 1
+        Label.Text = Text
+        Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 12
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Parent = ToggleFrame
+        local Toggle = Instance.new("TextButton")
+        Toggle.Size = UDim2.new(0, 30, 0, 20)
+        Toggle.Position = UDim2.new(1, -35, 0, 2)
+        Toggle.Text = ""
+        Toggle.BorderSizePixel = 0
+        Toggle.BackgroundColor3 = Default and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+        Toggle.Parent = ToggleFrame
+        local IsOn = Default
+        Toggle.MouseButton1Click:Connect(function()
+            IsOn = not IsOn
+            Toggle.BackgroundColor3 = IsOn and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+            Callback(IsOn)
+        end)
+        YOffset = YOffset + 25
+        return Toggle
+    end
+
+    -- 3f. Toggle'ları ekle
+    AddToggle("ESP Açık", function(val) Settings.MasterEnabled = val end, true)
+    AddToggle("Oyuncu ESP", function(val) Settings.Players.Enabled = val end, true)
+    AddToggle("Oyuncu Kutu", function(val) Settings.Players.ShowBox = val end, true)
+    AddToggle("Oyuncu İsim", function(val) Settings.Players.ShowName = val end, true)
+    AddToggle("Oyuncu Can", function(val) Settings.Players.ShowHealth = val end, true)
+    AddToggle("Oyuncu Mesafe", function(val) Settings.Players.ShowDistance = val end, true)
+    AddToggle("Oyuncu Çizgi", function(val) Settings.Players.ShowTracers = val end, true)
+    AddToggle("NPC ESP", function(val) Settings.NPCs.Enabled = val end, true)
+    AddToggle("NPC Kutu", function(val) Settings.NPCs.ShowBox = val end, true)
+    AddToggle("NPC İsim", function(val) Settings.NPCs.ShowName = val end, true)
+
+    -- 3g. Scroll canvas'ı güncelle
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, YOffset + 10)
+    return ScreenGui
 end
 
-function ESP_Sil(Hedef)
-local Veri = ESP_Listesi[Hedef]
-if not Veri then return end
-if Veri.KutuGovde then Veri.KutuGovde:Destroy() end
-if Veri.IsimEtiketi then Veri.IsimEtiketi:Destroy() end
-if Veri.VurguGovde then Veri.VurguGovde:Destroy() end
-ESP_Listesi[Hedef] = nil
+-- 4. ESP Yardımcı Fonksiyonları
+local function GetCharacterData(Character)
+    if not Character then return nil end
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = Character:FindFirstChild("Humanoid")
+    local Head = Character:FindFirstChild("Head")
+    if not HumanoidRootPart or not Humanoid or not Head then return nil end
+    local Position, OnScreen = Camera:WorldToViewportPoint(HumanoidRootPart.Position)
+    local RootPos, HeadPos = HumanoidRootPart.Position, Head.Position
+    local Height = math.abs((HeadPos.Y - RootPos.Y) * 2.5)
+    local Width = Height / 2
+    return {
+        Position = Vector2.new(Position.X, Position.Y),
+        OnScreen = OnScreen,
+        Height = Height,
+        Width = Width,
+        Humanoid = Humanoid,
+        Name = Character.Name,
+        IsNPC = not Players:GetPlayerFromCharacter(Character),
+        RootPart = HumanoidRootPart
+    }
 end
 
-local function ESP_Guncelle()
-while Calisiyor do
-if ESP_Aktif then
-local YerelKarakter = YerelOyuncu.Character
-local YerelPoz = YerelKarakter and YerelKarakter:FindFirstChild("HumanoidRootPart") and YerelKarakter.HumanoidRootPart.Position
+-- 5. ESP Çizim Sınıfı (Drawing API)
+local Draw = Drawing
+local function CreateESP(TargetData)
+    local ESPObjects = {}
+    
+    if ESPObjects and Draw then
+        if TargetData.IsNPC and Settings.NPCs.ShowName or not TargetData.IsNPC and Settings.Players.ShowName then
+            local NameText = Draw.new("Text")
+            NameText.Text = TargetData.Name
+            NameText.Size = 13
+            NameText.Center = true
+            NameText.Outline = true
+            NameText.Color = TargetData.IsNPC and Settings.NPCs.NameColor or Settings.Players.NameColor
+            NameText.Visible = false
+            ESPObjects.NameText = NameText
+        end
+        if TargetData.IsNPC and Settings.NPCs.ShowBox or not TargetData.IsNPC and Settings.Players.ShowBox then
+            local BoxOutline = Draw.new("Square")
+            BoxOutline.Thickness = 1
+            BoxOutline.Filled = false
+            BoxOutline.Color = TargetData.IsNPC and Settings.NPCs.BoxColor or Settings.Players.BoxColor
+            BoxOutline.Visible = false
+            ESPObjects.BoxOutline = BoxOutline
+        end
+        if not TargetData.IsNPC and Settings.Players.ShowHealth then
+            local HealthBarBg = Draw.new("Square")
+            HealthBarBg.Filled = true
+            HealthBarBg.Color = Color3.new(0,0,0)
+            HealthBarBg.Visible = false
+            ESPObjects.HealthBarBg = HealthBarBg
+            local HealthBar = Draw.new("Square")
+            HealthBar.Filled = true
+            HealthBar.Color = Color3.new(0,1,0)
+            HealthBar.Visible = false
+            ESPObjects.HealthBar = HealthBar
+        end
+        if not TargetData.IsNPC and Settings.Players.ShowTracers then
+            local Tracer = Draw.new("Line")
+            Tracer.Color = Settings.Players.TracerColor
+            Tracer.Thickness = 1
+            Tracer.Visible = false
+            ESPObjects.Tracer = Tracer
+        end
+    end
 
-for _, Hedef in pairs(Oyuncular:GetPlayers()) do
-if OyuncuGecerliMi(Hedef) then
-if not ESP_Listesi[Hedef] then ESP_Olustur(Hedef) end
-local Veri = ESP_Listesi[Hedef]
-if Veri then
-local Karakter = Hedef.Character
-local Kafa = Karakter.Head
-local Govde = Karakter:FindFirstChild("HumanoidRootPart") or Karakter:FindFirstChild("UpperTorso")
-local Insansi = Karakter.Humanoid
-local Saglik = Insansi.Health; local MaxSaglik = Insansi.MaxHealth
-local Mesafe = YerelPoz and (YerelPoz - Kafa.Position).Magnitude or 0
-
-local DostMu = false
-if YerelOyuncu.Team and Hedef.Team then DostMu = YerelOyuncu.Team == Hedef.Team end
-local Renk = DostMu and DostRenk or DusmanRenk
-
--- İsim Güncelleme
-if Mesafe_Aktif then
-Veri.EtiketMetni.Text = string.format("%s\n[%d HP | %.0f m]", Hedef.Name, Saglik, Mesafe)
-else
-Veri.EtiketMetni.Text = string.format("%s\n[%d HP]", Hedef.Name, Saglik)
+    local function UpdateESP(Character)
+        if not Settings.MasterEnabled then
+            for _, v in pairs(ESPObjects) do
+                if v then v.Visible = false end
+            end
+            return
+        end
+        if TargetData.IsNPC and not Settings.NPCs.Enabled then
+            for _, v in pairs(ESPObjects) do
+                if v then v.Visible = false end
+            end
+            return
+        end
+        if not TargetData.IsNPC and not Settings.Players.Enabled then
+            for _, v in pairs(ESPObjects) do
+                if v then v.Visible = false end
+            end
+            return
+        end
+        
+        local Data = GetCharacterData(Character)
+        if not Data or not Data.OnScreen then
+            for _, v in pairs(ESPObjects) do
+                if v then v.Visible = false end
+            end
+            return
+        end
+        
+        local ScreenPos = Data.Position
+        local Height = Data.Height
+        local Width = Data.Width
+        local ScaleFactor = 1000 / (Camera.CFrame.Position - Data.RootPart.Position).Magnitude
+        Height = Height * ScaleFactor
+        Width = Width * ScaleFactor
+        local ScreenSize = Camera.ViewportSize
+        
+        if ESPObjects.NameText and (Data.IsNPC and Settings.NPCs.ShowName or not Data.IsNPC and Settings.Players.ShowName) then
+            ESPObjects.NameText.Position = Vector2.new(ScreenPos.X, ScreenPos.Y - Height/2 - 15)
+            ESPObjects.NameText.Visible = true
+            if Settings.Players.ShowDistance and not Data.IsNPC then
+                local Dist = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - Data.RootPart.Position).Magnitude) or 0)
+                ESPObjects.NameText.Text = Data.Name .. " [" .. Dist .. "m]"
+            end
+        end
+        if ESPObjects.BoxOutline and (Data.IsNPC and Settings.NPCs.ShowBox or not Data.IsNPC and Settings.Players.ShowBox) then
+            ESPObjects.BoxOutline.Position = Vector2.new(ScreenPos.X - Width/2, ScreenPos.Y - Height/2)
+            ESPObjects.BoxOutline.Size = Vector2.new(Width, Height)
+            ESPObjects.BoxOutline.Visible = true
+        end
+        if ESPObjects.HealthBar and not Data.IsNPC and Settings.Players.ShowHealth then
+            local Health = Data.Humanoid.Health / Data.Humanoid.MaxHealth
+            local BarHeight = Height * Health
+            ESPObjects.HealthBarBg.Position = Vector2.new(ScreenPos.X - Width/2 - 6, ScreenPos.Y - Height/2)
+            ESPObjects.HealthBarBg.Size = Vector2.new(3, Height)
+            ESPObjects.HealthBarBg.Visible = true
+            ESPObjects.HealthBar.Position = Vector2.new(ScreenPos.X - Width/2 - 6, ScreenPos.Y + Height/2 - BarHeight)
+            ESPObjects.HealthBar.Size = Vector2.new(3, BarHeight)
+            ESPObjects.HealthBar.Color = Color3.new(1 - Health, Health, 0)
+            ESPObjects.HealthBar.Visible = true
+        end
+        if ESPObjects.Tracer and not Data.IsNPC and Settings.Players.ShowTracers then
+            ESPObjects.Tracer.From = Vector2.new(ScreenSize.X/2, ScreenSize.Y)
+            ESPObjects.Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y + Height/2)
+            ESPObjects.Tracer.Visible = true
+        end
+    end
+    return UpdateESP
 end
-Veri.EtiketMetni.TextColor3 = Renk
 
--- Kutu Boyutlandırma
-local EkranPoz, EkranGorunur = Kamera:WorldToViewportPoint(Kafa.Position)
-if EkranGorunur then
-local YukseklikStuds = math.clamp(Mesafe * 0.018, 4, 8)
-local GenislikStuds = YukseklikStuds * 0.55
-Veri.KutuGovde.Size = UDim2.new(0, GenislikStuds * 20, 0, YukseklikStuds * 20)
-Veri.KutuGovde.StudsOffset = Vector3.new(0, -YukseklikStuds/2, 0)
-
-Veri.UstCizgi.Size = UDim2.new(1,0,0,2); Veri.UstCizgi.Position = UDim2.new(0,0,0,0); Veri.UstCizgi.BackgroundColor3 = Renk
-Veri.AltCizgi.Size = UDim2.new(1,0,0,2); Veri.AltCizgi.Position = UDim2.new(0,0,1,-2); Veri.AltCizgi.BackgroundColor3 = Renk
-Veri.SolCizgi.Size = UDim2.new(0,2,1,0); Veri.SolCizgi.Position = UDim2.new(0,0,0,0); Veri.SolCizgi.BackgroundColor3 = Renk
-Veri.SagCizgi.Size = UDim2.new(0,2,1,0); Veri.SagCizgi.Position = UDim2.new(1,-2,0,0); Veri.SagCizgi.BackgroundColor3 = Renk
-
-local SaglikOrani = Saglik / MaxSaglik
-Veri.SaglikBarArka.Size = UDim2.new(0,4,1,0); Veri.SaglikBarArka.Position = UDim2.new(0,-8,0,0)
-Veri.SaglikBarDolgu.Size = UDim2.new(1,0,SaglikOrani,0); Veri.SaglikBarDolgu.Position = UDim2.new(0,0,1-SaglikOrani,0)
-Veri.SaglikBarDolgu.BackgroundColor3 = Color3.fromRGB(255(1-SaglikOrani), 255SaglikOrani, 40)
-
-Veri.KutuGovde.Enabled = Kutu_Aktif
-Veri.SaglikBarArka.Visible = SaglikBari_Aktif
-else
-Veri.KutuGovde.Enabled = false
-Veri.SaglikBarArka.Visible = false
+-- 6. Ana ESP Döngüsü
+local function StartESP()
+    if ESP_Connections.RenderStep then ESP_Connections.RenderStep:Disconnect() end
+    ESP_Connections.RenderStep = RunService.RenderStepped:Connect(function()
+        local TargetList = {}
+        if Settings.Players.Enabled or Settings.NPCs.Enabled then
+            for _, Player in ipairs(Players:GetPlayers()) do
+                if Player ~= LocalPlayer and Player.Character then
+                    table.insert(TargetList, Player.Character)
+                end
+            end
+            if Settings.NPCs.Enabled then
+                for _, Model in ipairs(workspace:GetChildren()) do
+                    if Model:IsA("Model") and Model:FindFirstChild("Humanoid") and Model:FindFirstChild("Head") then
+                        if not Players:GetPlayerFromCharacter(Model) then
+                            table.insert(TargetList, Model)
+                        end
+                    end
+                end
+            end
+        end
+        local ActiveChars = {}
+        for _, Char in ipairs(TargetList) do
+            ActiveChars[Char] = true
+            if not TrackedCharacters[Char] then
+                local Data = GetCharacterData(Char)
+                if Data then
+                    TrackedCharacters[Char] = CreateESP(Data)
+                end
+            end
+            if TrackedCharacters[Char] then
+                TrackedCharacters[Char](Char)
+            end
+        end
+        for Char, _ in pairs(TrackedCharacters) do
+            if not ActiveChars[Char] then
+                TrackedCharacters[Char] = nil
+            end
+        end
+    end)
 end
 
-Veri.VurguCerceve.BackgroundColor3 = Renk
-Veri.VurguCerceve.BorderColor3 = Renk
-Veri.VurguGovde.Enabled = Vurgu_Aktif
-end
-else
-if ESP_Listesi[Hedef] then ESP_Sil(Hedef) end
-end
-end
-end
-wait(0.05)
-end
-end
-
--- Oyuncu Olayları
-Oyuncular.PlayerAdded:Connect(function(Hedef)
-Hedef.CharacterAdded:Connect(function()
-wait(0.5)
-if OyuncuGecerliMi(Hedef) then ESP_Olustur(Hedef) end
+-- 7. Oyuncu respawn'larında ESP'yi sıfırla
+LocalPlayer.CharacterAdded:Connect(function()
+    TrackedCharacters = {}
 end)
-end)
 
-Oyuncular.PlayerRemoving:Connect(function(Hedef) ESP_Sil(Hedef) end)
-
--- Mevcut Oyuncular
-for _, Hedef in pairs(Oyuncular:GetPlayers()) do
-if Hedef ~= YerelOyuncu and Hedef.Character and OyuncuGecerliMi(Hedef) then ESP_Olustur(Hedef) end
-Hedef.CharacterAdded:Connect(function()
-wait(0.5)
-if OyuncuGecerliMi(Hedef) then ESP_Olustur(Hedef) end
-end)
-end
-
-spawn(ESP_Guncelle)
-
-getgenv().ESP_Kapat = function()
-Calisiyor = false
-for Hedef, _ in pairs(ESP_Listesi) do ESP_Sil(Hedef) end
-ESP_Ekran:Destroy()
-if AnaPanel then AnaPanel:Destroy() end
-end
+-- 8. GUI'yi başlat ve ESP'yi çalıştır
+CreateGUI()
+StartESP()
+print("ESP GUI Kontrol Paneli Aktif. Sağ üst köşedeki panelden kontrol edin.")
