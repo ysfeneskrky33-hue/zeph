@@ -6,9 +6,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- /////////////// AYARLAR ///////////////
 local Settings = {
-    -- ESP
     ESP_Master = true,
     ESP_Boxes = true,
     ESP_Names = true,
@@ -17,14 +15,12 @@ local Settings = {
     ESP_Distance = true,
     ESP_Chams = true,
     ESP_ChamsColor = Color3.fromRGB(255, 0, 0),
-    -- AIMBOT
     Aimbot_Master = false,
     Aimbot_TeamCheck = false,
     Aimbot_VisibleCheck = true,
     Aimbot_FOVRadius = 100,
     Aimbot_Smoothness = 5,
     Aimbot_TargetPart = "Head",
-    -- SILENT AIM
     Silent_Master = false,
     Silent_TeamCheck = false,
     Silent_VisibleCheck = true,
@@ -33,14 +29,12 @@ local Settings = {
     Silent_HitChance = 100
 }
 
--- /////////////// VERİ DEPOSU ///////////////
 local ESP_Folder = Instance.new("Folder", CoreGui)
 ESP_Folder.Name = "GINS_System"
 local ESP_List = {}
 local Chams_List = {}
 local FOV_Circle = nil
 
--- /////////////// YARDIMCI FONKSİYONLAR ///////////////
 local function IsVisible(TargetPart)
     if not TargetPart then return false end
     local Origin = Camera.CFrame.Position
@@ -56,7 +50,6 @@ local function GetClosestPlayerToCursor(FOVRadius, TeamCheck, VisibleCheck)
     local ClosestPlayer = nil
     local ClosestDistance = FOVRadius or math.huge
     local MousePos = UserInputService:GetMouseLocation()
-    
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player == LocalPlayer then continue end
         if TeamCheck and Player.Team == LocalPlayer.Team then continue end
@@ -65,10 +58,8 @@ local function GetClosestPlayerToCursor(FOVRadius, TeamCheck, VisibleCheck)
         local TargetPart = Char:FindFirstChild(Settings.Aimbot_TargetPart) or Char:FindFirstChild("Head")
         if not TargetPart then continue end
         if VisibleCheck and not IsVisible(TargetPart) then continue end
-        
         local ScreenPos, OnScreen = Camera:WorldToViewportPoint(TargetPart.Position)
         if not OnScreen then continue end
-        
         local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - MousePos).Magnitude
         if Distance < ClosestDistance then
             ClosestDistance = Distance
@@ -78,14 +69,12 @@ local function GetClosestPlayerToCursor(FOVRadius, TeamCheck, VisibleCheck)
     return ClosestPlayer
 end
 
--- /////////////// GUI ///////////////
 local function CreateGUI()
     local ScreenGui = Instance.new("ScreenGui", CoreGui)
     ScreenGui.Name = "GINS_Panel"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.IgnoreGuiInset = true
     
-    -- Ana çerçeve
     local Main = Instance.new("Frame", ScreenGui)
     Main.Size = UDim2.new(0, 220, 0, 420)
     Main.Position = UDim2.new(1, -230, 0.2, 0)
@@ -95,7 +84,6 @@ local function CreateGUI()
     Main.Draggable = true
     Main.ClipsDescendants = true
     
-    -- Başlık
     local Title = Instance.new("Frame", Main)
     Title.Size = UDim2.new(1, 0, 0, 30)
     Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -109,7 +97,6 @@ local function CreateGUI()
     TitleText.TextSize = 11
     TitleText.TextXAlignment = Enum.TextXAlignment.Center
     
-    -- Sekme butonları
     local TabHolder = Instance.new("Frame", Main)
     TabHolder.Size = UDim2.new(1, 0, 0, 25)
     TabHolder.Position = UDim2.new(0, 0, 0, 30)
@@ -157,18 +144,15 @@ local function CreateGUI()
     local Aimbot_Page = CreateTab("AIMBOT")
     local Silent_Page = CreateTab("SILENT")
     
-    -- Varsayılan olarak ESP sekmesini göster
     TabButtons[1].BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     TabPages[1].Visible = true
     
-    -- Toggle ekleme fonksiyonu
     local function AddToggle(Page, Text, Default, Callback, YRef)
         local Y = YRef[1]
         local Frame = Instance.new("Frame", Page)
         Frame.Size = UDim2.new(1, 0, 0, 24)
         Frame.Position = UDim2.new(0, 0, 0, Y)
         Frame.BackgroundTransparency = 1
-        
         local Label = Instance.new("TextLabel", Frame)
         Label.Size = UDim2.new(0.65, 0, 1, 0)
         Label.BackgroundTransparency = 1
@@ -177,14 +161,12 @@ local function CreateGUI()
         Label.Font = Enum.Font.Gotham
         Label.TextSize = 11
         Label.TextXAlignment = Enum.TextXAlignment.Left
-        
         local Toggle = Instance.new("TextButton", Frame)
         Toggle.Size = UDim2.new(0, 28, 0, 18)
         Toggle.Position = UDim2.new(1, -32, 0, 3)
         Toggle.BorderSizePixel = 0
         Toggle.Text = ""
         Toggle.BackgroundColor3 = Default and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
-        
         local State = Default
         Toggle.MouseButton1Click:Connect(function()
             State = not State
@@ -195,7 +177,6 @@ local function CreateGUI()
         return Toggle
     end
     
-    -- ESP Sekmesi Toggle'ları
     local ESP_Y = {0}
     AddToggle(ESP_Page, "ESP Acik/Kapali", true, function(v) Settings.ESP_Master = v end, ESP_Y)
     AddToggle(ESP_Page, "Kutular", true, function(v) Settings.ESP_Boxes = v end, ESP_Y)
@@ -206,22 +187,21 @@ local function CreateGUI()
     AddToggle(ESP_Page, "CHAMS (Model Boya)", true, function(v) Settings.ESP_Chams = v end, ESP_Y)
     ESP_Page.CanvasSize = UDim2.new(0, 0, 0, ESP_Y[1] + 5)
     
-    -- Aimbot Sekmesi Toggle'ları
     local Aim_Y = {0}
     AddToggle(Aimbot_Page, "Aimbot Acik/Kapali", false, function(v) Settings.Aimbot_Master = v end, Aim_Y)
     AddToggle(Aimbot_Page, "Takim Kontrolu", false, function(v) Settings.Aimbot_TeamCheck = v end, Aim_Y)
     AddToggle(Aimbot_Page, "Gorunurluk Kontrolu", true, function(v) Settings.Aimbot_VisibleCheck = v end, Aim_Y)
     Aimbot_Page.CanvasSize = UDim2.new(0, 0, 0, Aim_Y[1] + 5)
     
-    -- Silent Sekmesi Toggle'ları
     local Silent_Y = {0}
     AddToggle(Silent_Page, "Silent Aim Acik/Kapali", false, function(v) Settings.Silent_Master = v end, Silent_Y)
     AddToggle(Silent_Page, "Takim Kontrolu", false, function(v) Settings.Silent_TeamCheck = v end, Silent_Y)
     AddToggle(Silent_Page, "Gorunurluk Kontrolu", true, function(v) Settings.Silent_VisibleCheck = v end, Silent_Y)
     Silent_Page.CanvasSize = UDim2.new(0, 0, 0, Silent_Y[1] + 5)
+    
+    print("GINS GUI Olusturuldu")
 end
 
--- /////////////// CHAMS (Highlight) ///////////////
 local function ApplyChams(Plr, Char)
     if Chams_List[Plr] and Chams_List[Plr].Remove then
         Chams_List[Plr]:Remove()
@@ -239,7 +219,6 @@ local function ApplyChams(Plr, Char)
     Chams_List[Plr] = Highlight
 end
 
--- /////////////// ESP TEMİZLİK ///////////////
 local function ClearESP(Plr)
     if ESP_List[Plr] then
         for _, v in pairs(ESP_List[Plr]) do
@@ -253,7 +232,6 @@ local function ClearESP(Plr)
     end
 end
 
--- /////////////// ESP OLUŞTUR ///////////////
 local function CreateESP(Plr)
     local Char = Plr.Character
     if not Char then return end
@@ -274,23 +252,19 @@ local function CreateESP(Plr)
         Obj.Box.Filled = false
         Obj.Box.Color = Color3.fromRGB(255, 255, 255)
         Obj.Box.Visible = false
-        
         Obj.Name = Drawing.new("Text")
         Obj.Name.Size = 13
         Obj.Name.Center = true
         Obj.Name.Outline = true
         Obj.Name.Color = Color3.fromRGB(255, 255, 255)
         Obj.Name.Visible = false
-        
         Obj.HPbg = Drawing.new("Square")
         Obj.HPbg.Filled = true
         Obj.HPbg.Color = Color3.new(0, 0, 0)
         Obj.HPbg.Visible = false
-        
         Obj.HP = Drawing.new("Square")
         Obj.HP.Filled = true
         Obj.HP.Visible = false
-        
         Obj.Tracer = Drawing.new("Line")
         Obj.Tracer.Thickness = 1
         Obj.Tracer.Color = Color3.fromRGB(255, 255, 255)
@@ -301,43 +275,31 @@ local function CreateESP(Plr)
     Conn = RunService.RenderStepped:Connect(function()
         if not Settings.ESP_Master then
             for _, v in pairs(Obj) do if v and v.Visible ~= nil then v.Visible = false end end
-            if Chams_List[Plr] and Chams_List[Plr].Remove then
-                Chams_List[Plr]:Remove()
-                Chams_List[Plr] = nil
-            end
+            if Chams_List[Plr] and Chams_List[Plr].Remove then Chams_List[Plr]:Remove() Chams_List[Plr] = nil end
             return
         end
-        
         if Settings.ESP_Chams and not Chams_List[Plr] then
             ApplyChams(Plr, Char)
         elseif not Settings.ESP_Chams and Chams_List[Plr] and Chams_List[Plr].Remove then
-            Chams_List[Plr]:Remove()
-            Chams_List[Plr] = nil
+            Chams_List[Plr]:Remove() Chams_List[Plr] = nil
         end
-        
         if not Char or not Char.Parent or not Root or not Root.Parent then
-            Conn:Disconnect()
-            ClearESP(Plr)
-            return
+            Conn:Disconnect() ClearESP(Plr) return
         end
-        
         local RootPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
         if not OnScreen then
             for _, v in pairs(Obj) do if v and v.Visible ~= nil then v.Visible = false end end
             return
         end
-        
         local Dist = (Camera.CFrame.Position - Root.Position).Magnitude
         local Scale = 1000 / Dist
         local H = math.abs((Head.Position.Y - Root.Position.Y) * 2.5) * Scale
         local W = H / 2
-        
         if Settings.ESP_Boxes and Obj.Box then
             Obj.Box.Position = Vector2.new(RootPos.X - W/2, RootPos.Y - H/2)
             Obj.Box.Size = Vector2.new(W, H)
             Obj.Box.Visible = true
         elseif Obj.Box then Obj.Box.Visible = false end
-        
         if Settings.ESP_Names and Obj.Name then
             local Txt = Plr.Name
             if Settings.ESP_Distance then Txt = Txt .. " [" .. math.floor(Dist) .. "m]" end
@@ -345,7 +307,6 @@ local function CreateESP(Plr)
             Obj.Name.Position = Vector2.new(RootPos.X, RootPos.Y - H/2 - 15)
             Obj.Name.Visible = true
         elseif Obj.Name then Obj.Name.Visible = false end
-        
         if Settings.ESP_Health and Obj.HP then
             local HP = Hum.Health / Hum.MaxHealth
             local BH = H * HP
@@ -356,11 +317,7 @@ local function CreateESP(Plr)
             Obj.HP.Size = Vector2.new(3, BH)
             Obj.HP.Color = Color3.new(1 - HP, HP, 0)
             Obj.HP.Visible = true
-        elseif Obj.HP then
-            Obj.HP.Visible = false
-            Obj.HPbg.Visible = false
-        end
-        
+        elseif Obj.HP then Obj.HP.Visible = false Obj.HPbg.Visible = false end
         if Settings.ESP_Tracers and Obj.Tracer then
             Obj.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
             Obj.Tracer.To = Vector2.new(RootPos.X, RootPos.Y + H/2)
@@ -369,7 +326,6 @@ local function CreateESP(Plr)
     end)
 end
 
--- /////////////// FOV DAİRESİ ///////////////
 local function UpdateFOVCircle()
     if FOV_Circle then FOV_Circle:Remove() FOV_Circle = nil end
     if not Drawing then return end
@@ -384,20 +340,17 @@ local function UpdateFOVCircle()
     end
 end
 
--- /////////////// AIMBOT ///////////////
 RunService.RenderStepped:Connect(function()
     UpdateFOVCircle()
     if not Settings.Aimbot_Master then
         if FOV_Circle and Settings.Silent_Master then
             FOV_Circle.Radius = Settings.Silent_FOVRadius
         elseif FOV_Circle then
-            FOV_Circle:Remove()
-            FOV_Circle = nil
+            FOV_Circle:Remove() FOV_Circle = nil
         end
         return
     end
     if FOV_Circle then FOV_Circle.Radius = Settings.Aimbot_FOVRadius end
-    
     local Target = GetClosestPlayerToCursor(Settings.Aimbot_FOVRadius, Settings.Aimbot_TeamCheck, Settings.Aimbot_VisibleCheck)
     if Target and Target.Character then
         local TargetPart = Target.Character:FindFirstChild(Settings.Aimbot_TargetPart) or Target.Character:FindFirstChild("Head")
@@ -412,7 +365,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- /////////////// SILENT AIM ///////////////
 local OldNamecall
 OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local args = {...}
@@ -422,7 +374,6 @@ OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         if Target and Target.Character then
             local TargetPart = Target.Character:FindFirstChild(Settings.Silent_TargetPart) or Target.Character:FindFirstChild("Head")
             if TargetPart and math.random(1, 100) <= Settings.Silent_HitChance then
-                -- Sessiz hedef değiştirme (oyun motoruna göre değişir, temel yapı)
                 if args[1] and typeof(args[1]) == "table" and args[1].Position then
                     args[1] = TargetPart
                 end
@@ -432,7 +383,6 @@ OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return OldNamecall(self, unpack(args))
 end)
 
--- /////////////// OYUNCU TAKİBİ ///////////////
 local function AddPlayer(Plr)
     if Plr == LocalPlayer then return end
     Plr.CharacterAdded:Connect(function(Char)
@@ -464,6 +414,5 @@ task.spawn(function()
     end
 end)
 
--- /////////////// BAŞLAT ///////////////
 CreateGUI()
-print("GINS v1.0 Yuklendi | ESP + AIMBOT + SILENT AIM | 3 Sekmeli Panel")
+print("GINS v1.0 Yuklendi | GitHub Raw Uyumlu | 3 Sekmeli Panel")
