@@ -4,6 +4,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- AYARLAR
 local Settings = {
     Master = true,
     Boxes = true,
@@ -11,18 +12,16 @@ local Settings = {
     Health = true,
     Tracers = true,
     Distance = true,
-    Charms = true
+    Chams = true,
+    ChamsColor = Color3.fromRGB(255, 0, 0) -- Kırmızı chams
 }
 
 local ESP_Folder = Instance.new("Folder", CoreGui)
 ESP_Folder.Name = "ESP_System"
-local ESP_List = {}
+local ESP_List = {}        -- Drawing nesneleri
+local Chams_List = {}      -- Highlight nesneleri
 
--- Açı hesaplama için yardımcı fonksiyon
-local function AngleBetween(V1, V2)
-    return math.atan2(V2.Y - V1.Y, V2.X - V1.X)
-end
-
+-- /////////////// GUI ///////////////
 local function CreateGUI()
     local ScreenGui = Instance.new("ScreenGui", CoreGui)
     ScreenGui.Name = "ESP_Panel"
@@ -106,39 +105,46 @@ local function CreateGUI()
     AddToggle("Can Bari", true, function(v) Settings.Health = v end)
     AddToggle("Cizgiler", true, function(v) Settings.Tracers = v end)
     AddToggle("Mesafe", true, function(v) Settings.Distance = v end)
-    AddToggle("CHARMS", true, function(v) Settings.Charms = v end)
+    AddToggle("CHAMS (Model Boya)", true, function(v) Settings.Chams = v end)
     Scroll.CanvasSize = UDim2.new(0, 0, 0, Y + 5)
 end
 
--- CHARMS ÇİZİMİ: Hedefin etrafında dairesel yarım ay, cana göre renk değiştirir.
-local function DrawCharm(CenterX, CenterY, Radius, StartAngle, EndAngle, Color, Thickness)
-    -- Drawing kütüphanesinde Circle/Arc yoksa, çokgen (Polygon) ile yaklaşık daire çizilir.
-    -- Alternatif: Birden fazla Line ile arc oluştur. En temizi: Triangle/Line serisi.
-    -- Burada basitlik için 2 adet çizgi ile bir V şekli (ok) çizerek yön belirteceğiz.
-    -- Gerçek Charms: Sağlık durumuna göre renklenen, oyuncunun etrafında konumlanan yay.
-    -- Tam implementasyon: 36 segmentli polygon arc.
-    if not Drawing then return end
-    local Segments = 36
-    local Lines = {}
-    local AngleStep = (EndAngle - StartAngle) / Segments
-    for i = 0, Segments - 1 do
-        local A1 = StartAngle + i * AngleStep
-        local A2 = StartAngle + (i + 1) * AngleStep
-        local X1 = CenterX + math.cos(A1) * Radius
-        local Y1 = CenterY + math.sin(A1) * Radius
-        local X2 = CenterX + math.cos(A2) * Radius
-        local Y2 = CenterY + math.sin(A2) * Radius
-        local Line = Drawing.new("Line")
-        Line.From = Vector2.new(X1, Y1)
-        Line.To = Vector2.new(X2, Y2)
-        Line.Color = Color
-        Line.Thickness = Thickness
-        Line.Visible = true
-        table.insert(Lines, Line)
+-- /////////////// YARDIMCI: Tüm ESP nesnelerini temizle ///////////////
+local function ClearESP(Plr)
+    if ESP_List[Plr] then
+        for _, v in pairs(ESP_List[Plr]) do
+            if v and v.Remove then v:Remove() end
+        end
+        ESP_List[Plr] = nil
     end
-    return Lines -- Temizlik için döndür
+    if Chams_List[Plr] then
+        if Chams_List[Plr].Remove then Chams_List[Plr]:Remove() end
+        Chams_List[Plr] = nil
+    end
 end
 
+-- /////////////// CHAMS UYGULA (Highlight ile karakterin tam hatlarını boya) ///////////////
+local function ApplyChams(Plr, Char)
+    if not Char then return end
+    -- Önceki chams'i temizle
+    if Chams_List[Plr] and Chams_List[Plr].Remove then
+        Chams_List[Plr]:Remove()
+        Chams_List[Plr] = nil
+    end
+    
+    -- Yeni Highlight oluştur
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = "ESP_Chams"
+    Highlight.FillColor = Settings.ChamsColor
+    Highlight.FillTransparency = 0.4
+    Highlight.OutlineColor = Settings.ChamsColor
+    Highlight.OutlineTransparency = 0
+    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Duvarların arkasından da görünür
+    Highlight.Parent = Char
+    Chams_List[Plr] = Highlight
+end
+
+-- /////////////// ESP OLUŞTUR ///////////////
 local function CreateESP(Plr)
     local Char = Plr.Character
     if not Char then return end
@@ -147,14 +153,14 @@ local function CreateESP(Plr)
     local Hum = Char:FindFirstChild("Humanoid")
     if not Root or not Head or not Hum then return end
     
-    if ESP_List[Plr] then
-        for _, v in pairs(ESP_List[Plr]) do
-            if type(v) == "table" then for _, l in ipairs(v) do if l.Remove then l:Remove() end end
-            elseif v and v.Remove then v:Remove() end
-        end
-    end
+    ClearESP(Plr)
     ESP_List[Plr] = {}
     local Obj = ESP_List[Plr]
+    
+    -- Chams uygula
+    if Settings.Chams then
+        ApplyChams(Plr, Char)
+    end
     
     if Drawing then
         Obj.Box = Drawing.new("Square")
@@ -183,34 +189,42 @@ local function CreateESP(Plr)
         Obj.Tracer.Thickness = 1
         Obj.Tracer.Color = Color3.fromRGB(255, 255, 255)
         Obj.Tracer.Visible = false
-        
-        Obj.CharmLines = {}
     end
     
     local Conn
     Conn = RunService.RenderStepped:Connect(function()
+        -- ESP kapalıysa TÜM nesneleri gizle
         if not Settings.Master then
             for _, v in pairs(Obj) do
-                if type(v) == "table" then for _, l in ipairs(v) do l.Visible = false end
-                elseif v then v.Visible = false end
+                if v and v.Visible ~= nil then v.Visible = false end
+            end
+            -- Chams'i de kaldır
+            if Chams_List[Plr] and Chams_List[Plr].Remove then
+                Chams_List[Plr]:Remove()
+                Chams_List[Plr] = nil
             end
             return
         end
+        
+        -- Chams kontrolü
+        if Settings.Chams and not Chams_List[Plr] then
+            ApplyChams(Plr, Char)
+        elseif not Settings.Chams and Chams_List[Plr] then
+            if Chams_List[Plr].Remove then Chams_List[Plr]:Remove() end
+            Chams_List[Plr] = nil
+        end
+        
+        -- Karakter geçerlilik kontrolü
         if not Char or not Char.Parent or not Root or not Root.Parent then
             Conn:Disconnect()
-            for _, v in pairs(Obj) do
-                if type(v) == "table" then for _, l in ipairs(v) do if l.Remove then l:Remove() end end
-                elseif v and v.Remove then v:Remove() end
-            end
-            ESP_List[Plr] = nil
+            ClearESP(Plr)
             return
         end
         
         local RootPos, RootOnScreen = Camera:WorldToViewportPoint(Root.Position)
         if not RootOnScreen then
             for _, v in pairs(Obj) do
-                if type(v) == "table" then for _, l in ipairs(v) do l.Visible = false end
-                elseif v then v.Visible = false end
+                if v and v.Visible ~= nil then v.Visible = false end
             end
             return
         end
@@ -220,50 +234,6 @@ local function CreateESP(Plr)
         local H = math.abs((Head.Position.Y - Root.Position.Y) * 2.5) * Scale
         local W = H / 2
         
-        -- CHARMS: Düşmanın etrafında, canına göre renklenen yarım daire (yay)
-        if Settings.Charms and Obj.CharmLines then
-            -- Önceki charm çizgilerini temizle
-            for _, line in ipairs(Obj.CharmLines) do
-                if line and line.Remove then line:Remove() end
-            end
-            Obj.CharmLines = {}
-            
-            local HealthPercent = Hum.Health / Hum.MaxHealth
-            local CharmColor = Color3.fromRGB(255 * (1 - HealthPercent), 255 * HealthPercent, 0)
-            local Radius = W * 1.4
-            local CenterX = RootPos.X
-            local CenterY = RootPos.Y
-            
-            -- Yarım daire: 0 dereceden 180 dereceye (üst yarım)
-            local StartAngle = 0
-            local EndAngle = math.pi
-            local Segments = 24
-            local AngleStep = (EndAngle - StartAngle) / Segments
-            
-            for i = 0, Segments - 1 do
-                local A1 = StartAngle + i * AngleStep
-                local A2 = StartAngle + (i + 1) * AngleStep
-                local X1 = CenterX + math.cos(A1) * Radius
-                local Y1 = CenterY - math.sin(A1) * Radius  -- Eksi çünkü ekran Y'si ters
-                local X2 = CenterX + math.cos(A2) * Radius
-                local Y2 = CenterY - math.sin(A2) * Radius
-                
-                local Line = Drawing.new("Line")
-                Line.From = Vector2.new(X1, Y1)
-                Line.To = Vector2.new(X2, Y2)
-                Line.Color = CharmColor
-                Line.Thickness = 2
-                Line.Visible = true
-                table.insert(Obj.CharmLines, Line)
-            end
-        elseif Obj.CharmLines then
-            for _, line in ipairs(Obj.CharmLines) do
-                if line and line.Remove then line:Remove() end
-            end
-            Obj.CharmLines = {}
-        end
-        
-        -- Standart ESP öğeleri
         if Settings.Boxes and Obj.Box then
             Obj.Box.Position = Vector2.new(RootPos.X - W/2, RootPos.Y - H/2)
             Obj.Box.Size = Vector2.new(W, H)
@@ -301,23 +271,43 @@ local function CreateESP(Plr)
     end)
 end
 
+-- /////////////// OYUNCU TAKİBİ ///////////////
 local function AddPlayer(Plr)
     if Plr == LocalPlayer then return end
-    Plr.CharacterAdded:Connect(function() task.wait(0.3) CreateESP(Plr) end)
+    Plr.CharacterAdded:Connect(function(Char)
+        task.wait(0.3)
+        CreateESP(Plr)
+        -- Chams yeniden uygula (karakter değişince)
+        if Settings.Chams and Settings.Master then
+            ApplyChams(Plr, Char)
+        end
+    end)
     if Plr.Character then CreateESP(Plr) end
 end
 
 for _, p in ipairs(Players:GetPlayers()) do AddPlayer(p) end
 Players.PlayerAdded:Connect(AddPlayer)
-Players.PlayerRemoving:Connect(function(p)
-    if ESP_List[p] then
-        for _, v in pairs(ESP_List[p]) do
-            if type(v) == "table" then for _, l in ipairs(v) do if l.Remove then l:Remove() end end
-            elseif v and v.Remove then v:Remove() end
+Players.PlayerRemoving:Connect(ClearESP)
+
+-- /////////////// RESPAWN TEMİZLİK ///////////////
+LocalPlayer.CharacterAdded:Connect(function()
+    for Plr, _ in pairs(ESP_List) do ClearESP(Plr) end
+    for Plr, _ in pairs(Chams_List) do ClearESP(Plr) end
+end)
+
+-- /////////////// CHAMS RENK GÜNCELLEME DÖNGÜSÜ ///////////////
+task.spawn(function()
+    while task.wait(0.1) do
+        for Plr, Highlight in pairs(Chams_List) do
+            if Highlight and Highlight.Parent then
+                Highlight.FillColor = Settings.ChamsColor
+                Highlight.OutlineColor = Settings.ChamsColor
+                Highlight.Enabled = Settings.Master and Settings.Chams
+            end
         end
-        ESP_List[p] = nil
     end
 end)
 
+-- /////////////// BAŞLAT ///////////////
 CreateGUI()
-print("Charms ESP Aktif: Her oyuncunun etrafinda can durumuna gore renklenen yarim daire.")
+print("ESP vFinal: Hatalar giderildi. ESP kapaninca her sey silinir. Chams: Karakterin tam hatlarini boyar.")
