@@ -3,183 +3,250 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local ESP_Folder = Instance.new("Folder")
-ESP_Folder.Name = "ESP_Holder"
-ESP_Folder.Parent = CoreGui
 
-local Settings = {
-    Players = {
-        Enabled = true,
-        ShowBox = true,
-        ShowName = true,
-        ShowDistance = true,
-        ShowHealth = true,
-        ShowTracers = true,
-        BoxColor = Color3.fromRGB(255, 255, 255),
-        NameColor = Color3.fromRGB(255, 255, 255),
-        TracerColor = Color3.fromRGB(255, 255, 255)
-    },
-    NPCs = {
-        Enabled = true,
-        ShowBox = true,
-        ShowName = true,
-        BoxColor = Color3.fromRGB(255, 255, 0),
-        NameColor = Color3.fromRGB(255, 255, 0)
-    }
+-- ESP veri klasörü
+local Holder = Instance.new("Folder")
+Holder.Name = "ESP_Data"
+Holder.Parent = CoreGui
+
+-- Ayarlar
+local ESP = {
+    Enabled = true,
+    TeamCheck = false,
+    Boxes = true,
+    Names = true,
+    Distance = true,
+    Health = true,
+    Tracers = true
 }
 
-local function GetCharacterData(Character)
-    if not Character then return nil end
-    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    local Humanoid = Character:FindFirstChild("Humanoid")
-    local Head = Character:FindFirstChild("Head")
-    if not HumanoidRootPart or not Humanoid or not Head then return nil end
-    local Position, OnScreen = Camera:WorldToViewportPoint(HumanoidRootPart.Position)
-    local RootPos = HumanoidRootPart.Position
-    local HeadPos = Head.Position
-    local Height = math.abs((HeadPos.Y - RootPos.Y) * 2.5)
-    local Width = Height / 2
-    return {
-        Position = Vector2.new(Position.X, Position.Y),
-        OnScreen = OnScreen,
-        Height = Height,
-        Width = Width,
-        Humanoid = Humanoid,
-        Name = Character.Name,
-        IsNPC = not Players:GetPlayerFromCharacter(Character)
-    }
+-- Renkler
+local Colors = {
+    Box = Color3.fromRGB(255, 255, 255),
+    Name = Color3.fromRGB(255, 255, 255),
+    Tracer = Color3.fromRGB(255, 255, 255),
+    NPC_Box = Color3.fromRGB(255, 255, 0),
+    NPC_Name = Color3.fromRGB(255, 255, 0)
+}
+
+-- ESP nesnelerini tutan tablo
+local ESPObjects = {}
+
+-- 3D dünya koordinatlarını 2D ekran koordinatlarına çevir
+local function WorldToScreen(Position)
+    local Point, OnScreen = Camera:WorldToViewportPoint(Position)
+    return Vector2.new(Point.X, Point.Y), OnScreen
 end
 
-local TrackedCharacters = {}
-
-local function CreateESP(TargetData)
-    local ESPObjects = {}
-    local Draw = Drawing or nil
-    if Draw then
-        if TargetData.IsNPC and Settings.NPCs.ShowName or not TargetData.IsNPC and Settings.Players.ShowName then
-            local NameText = Draw.new("Text")
-            NameText.Text = TargetData.Name
-            NameText.Size = 13
-            NameText.Center = true
-            NameText.Outline = true
-            NameText.Color = TargetData.IsNPC and Settings.NPCs.NameColor or Settings.Players.NameColor
-            NameText.Visible = false
-            ESPObjects.NameText = NameText
-        end
-        if TargetData.IsNPC and Settings.NPCs.ShowBox or not TargetData.IsNPC and Settings.Players.ShowBox then
-            local BoxOutline = Draw.new("Square")
-            BoxOutline.Thickness = 1
-            BoxOutline.Filled = false
-            BoxOutline.Color = TargetData.IsNPC and Settings.NPCs.BoxColor or Settings.Players.BoxColor
-            BoxOutline.Visible = false
-            ESPObjects.BoxOutline = BoxOutline
-        end
-        if not TargetData.IsNPC and Settings.Players.ShowHealth then
-            local HealthBarBg = Draw.new("Square")
-            HealthBarBg.Filled = true
-            HealthBarBg.Color = Color3.new(0,0,0)
-            HealthBarBg.Visible = false
-            ESPObjects.HealthBarBg = HealthBarBg
-            local HealthBar = Draw.new("Square")
-            HealthBar.Filled = true
-            HealthBar.Color = Color3.new(0,1,0)
-            HealthBar.Visible = false
-            ESPObjects.HealthBar = HealthBar
-        end
-        if not TargetData.IsNPC and Settings.Players.ShowTracers then
-            local Tracer = Draw.new("Line")
-            Tracer.Color = Settings.Players.TracerColor
-            Tracer.Thickness = 1
-            Tracer.Visible = false
-            ESPObjects.Tracer = Tracer
-        end
-    end
-
-    local function UpdateESP(Character)
-        local Data = GetCharacterData(Character)
-        if not Data or not Data.OnScreen then
-            for _, v in pairs(ESPObjects) do if v then v.Visible = false end end
-            return
-        end
-        local ScreenPos = Data.Position
-        local Height = Data.Height
-        local Width = Data.Width
-        local ScaleFactor = 1000 / (Camera.CFrame.Position - Character.HumanoidRootPart.Position).Magnitude
-        Height = Height * ScaleFactor
-        Width = Width * ScaleFactor
-        local ScreenSize = Camera.ViewportSize
-        
-        if ESPObjects.NameText then
-            ESPObjects.NameText.Position = Vector2.new(ScreenPos.X, ScreenPos.Y - Height/2 - 15)
-            ESPObjects.NameText.Visible = true
-            if Settings.Players.ShowDistance and not Data.IsNPC then
-                local Dist = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Magnitude) or 0)
-                ESPObjects.NameText.Text = Data.Name .. " [" .. Dist .. "m]"
+-- ESP oluştur
+local function CreateESP(Player)
+    local Character = Player.Character
+    if not Character then return end
+    
+    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    local Head = Character:FindFirstChild("Head")
+    local Humanoid = Character:FindFirstChild("Humanoid")
+    if not RootPart or not Head or not Humanoid then return end
+    
+    -- Mevcut ESP'yi temizle
+    if ESPObjects[Player] then
+        for _, v in pairs(ESPObjects[Player]) do
+            if v and v.Remove then
+                v:Remove()
             end
         end
-        if ESPObjects.BoxOutline then
-            ESPObjects.BoxOutline.Position = Vector2.new(ScreenPos.X - Width/2, ScreenPos.Y - Height/2)
-            ESPObjects.BoxOutline.Size = Vector2.new(Width, Height)
-            ESPObjects.BoxOutline.Visible = true
-        end
-        if ESPObjects.HealthBar and not Data.IsNPC then
-            local Health = Data.Humanoid.Health / Data.Humanoid.MaxHealth
-            local BarHeight = Height * Health
-            ESPObjects.HealthBarBg.Position = Vector2.new(ScreenPos.X - Width/2 - 6, ScreenPos.Y - Height/2)
-            ESPObjects.HealthBarBg.Size = Vector2.new(3, Height)
-            ESPObjects.HealthBarBg.Visible = true
-            ESPObjects.HealthBar.Position = Vector2.new(ScreenPos.X - Width/2 - 6, ScreenPos.Y + Height/2 - BarHeight)
-            ESPObjects.HealthBar.Size = Vector2.new(3, BarHeight)
-            ESPObjects.HealthBar.Color = Color3.new(1 - Health, Health, 0)
-            ESPObjects.HealthBar.Visible = true
-        end
-        if ESPObjects.Tracer and not Data.IsNPC then
-            ESPObjects.Tracer.From = Vector2.new(ScreenSize.X/2, ScreenSize.Y)
-            ESPObjects.Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y + Height/2)
-            ESPObjects.Tracer.Visible = true
-        end
     end
-    return UpdateESP
+    ESPObjects[Player] = {}
+    
+    -- Drawing kütüphanesi kontrolü
+    local Draw = Drawing
+    if not Draw then
+        warn("Drawing kütüphanesi bulunamadı. Executor'unuz desteklemiyor olabilir.")
+        return
+    end
+    
+    -- ESP nesnelerini oluştur
+    local Box = Draw.new("Square")
+    Box.Thickness = 1
+    Box.Filled = false
+    Box.Color = Colors.Box
+    Box.Visible = false
+    ESPObjects[Player].Box = Box
+    
+    local NameTag = Draw.new("Text")
+    NameTag.Size = 13
+    NameTag.Center = true
+    NameTag.Outline = true
+    NameTag.Color = Colors.Name
+    NameTag.Visible = false
+    ESPObjects[Player].NameTag = NameTag
+    
+    local HealthBar = Draw.new("Square")
+    HealthBar.Filled = true
+    HealthBar.Visible = false
+    ESPObjects[Player].HealthBar = HealthBar
+    
+    local HealthBg = Draw.new("Square")
+    HealthBg.Filled = true
+    HealthBg.Color = Color3.new(0, 0, 0)
+    HealthBg.Visible = false
+    ESPObjects[Player].HealthBg = HealthBg
+    
+    local Tracer = Draw.new("Line")
+    Tracer.Thickness = 1
+    Tracer.Color = Colors.Tracer
+    Tracer.Visible = false
+    ESPObjects[Player].Tracer = Tracer
+    
+    -- NPC kontrolü
+    local IsNPC = false
+    pcall(function()
+        IsNPC = not Players:GetPlayerFromCharacter(Character)
+    end)
+    
+    -- Güncelleme döngüsü
+    local Connection
+    Connection = RunService.RenderStepped:Connect(function()
+        if not ESP.Enabled then
+            for _, v in pairs(ESPObjects[Player]) do
+                if v then v.Visible = false end
+            end
+            return
+        end
+        
+        if not Character or not Character.Parent then
+            Connection:Disconnect()
+            if ESPObjects[Player] then
+                for _, v in pairs(ESPObjects[Player]) do
+                    if v and v.Remove then v:Remove() end
+                end
+                ESPObjects[Player] = nil
+            end
+            return
+        end
+        
+        local RootPos = RootPart.Position
+        local HeadPos = Head.Position
+        local ScreenPos, OnScreen = WorldToScreen(RootPos)
+        
+        if not OnScreen then
+            for _, v in pairs(ESPObjects[Player]) do
+                if v then v.Visible = false end
+            end
+            return
+        end
+        
+        -- Mesafe hesapla
+        local Distance = (Camera.CFrame.Position - RootPos).Magnitude
+        local Scale = 1000 / Distance
+        
+        -- Boyut hesapla
+        local Height = math.abs((HeadPos.Y - RootPos.Y) * 2.5) * Scale
+        local Width = Height / 2
+        
+        -- Kutu
+        if ESP.Boxes and ESPObjects[Player].Box then
+            ESPObjects[Player].Box.Position = Vector2.new(ScreenPos.X - Width/2, ScreenPos.Y - Height/2)
+            ESPObjects[Player].Box.Size = Vector2.new(Width, Height)
+            ESPObjects[Player].Box.Color = IsNPC and Colors.NPC_Box or Colors.Box
+            ESPObjects[Player].Box.Visible = true
+        end
+        
+        -- İsim
+        if ESP.Names and ESPObjects[Player].NameTag then
+            local NameText = Player.Name
+            if ESP.Distance then
+                NameText = NameText .. " [" .. math.floor(Distance) .. "m]"
+            end
+            ESPObjects[Player].NameTag.Text = NameText
+            ESPObjects[Player].NameTag.Position = Vector2.new(ScreenPos.X, ScreenPos.Y - Height/2 - 15)
+            ESPObjects[Player].NameTag.Color = IsNPC and Colors.NPC_Name or Colors.Name
+            ESPObjects[Player].NameTag.Visible = true
+        end
+        
+        -- Can barı
+        if ESP.Health and ESPObjects[Player].HealthBar and ESPObjects[Player].HealthBg then
+            local Health = Humanoid.Health / Humanoid.MaxHealth
+            local BarHeight = Height * Health
+            ESPObjects[Player].HealthBg.Position = Vector2.new(ScreenPos.X - Width/2 - 6, ScreenPos.Y - Height/2)
+            ESPObjects[Player].HealthBg.Size = Vector2.new(3, Height)
+            ESPObjects[Player].HealthBg.Visible = true
+            ESPObjects[Player].HealthBar.Position = Vector2.new(ScreenPos.X - Width/2 - 6, ScreenPos.Y + Height/2 - BarHeight)
+            ESPObjects[Player].HealthBar.Size = Vector2.new(3, BarHeight)
+            ESPObjects[Player].HealthBar.Color = Color3.new(1 - Health, Health, 0)
+            ESPObjects[Player].HealthBar.Visible = true
+        end
+        
+        -- Çizgi
+        if ESP.Tracers and ESPObjects[Player].Tracer then
+            local ScreenSize = Camera.ViewportSize
+            ESPObjects[Player].Tracer.From = Vector2.new(ScreenSize.X/2, ScreenSize.Y)
+            ESPObjects[Player].Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y + Height/2)
+            ESPObjects[Player].Tracer.Visible = true
+        end
+    end)
+    
+    return Connection
 end
 
-RunService.RenderStepped:Connect(function()
-    local TargetList = {}
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player ~= LocalPlayer and Player.Character then
-            table.insert(TargetList, Player.Character)
-        end
+-- Oyuncu ekleme
+local function OnPlayerAdded(Player)
+    if Player == LocalPlayer then return end
+    Player.CharacterAdded:Connect(function(Character)
+        task.wait(0.5)
+        CreateESP(Player)
+    end)
+    if Player.Character then
+        task.wait(0.5)
+        CreateESP(Player)
     end
-    if Settings.NPCs.Enabled then
-        for _, Model in ipairs(workspace:GetChildren()) do
-            if Model:IsA("Model") and Model:FindFirstChild("Humanoid") and Model:FindFirstChild("Head") then
-                if not Players:GetPlayerFromCharacter(Model) then
-                    table.insert(TargetList, Model)
+end
+
+-- Tüm oyuncuları tara
+for _, Player in ipairs(Players:GetPlayers()) do
+    OnPlayerAdded(Player)
+end
+Players.PlayerAdded:Connect(OnPlayerAdded)
+
+-- Oyuncu çıkarma
+Players.PlayerRemoving:Connect(function(Player)
+    if ESPObjects[Player] then
+        for _, v in pairs(ESPObjects[Player]) do
+            if v and v.Remove then v:Remove() end
+        end
+        ESPObjects[Player] = nil
+    end
+end)
+
+-- NPC ESP
+task.spawn(function()
+    while task.wait(1) do
+        if not ESP.Enabled then continue end
+        for _, Object in ipairs(workspace:GetDescendants()) do
+            if Object:IsA("Model") and Object:FindFirstChild("Humanoid") and Object:FindFirstChild("Head") then
+                local IsPlayer = false
+                pcall(function()
+                    IsPlayer = Players:GetPlayerFromCharacter(Object) ~= nil
+                end)
+                if not IsPlayer and not ESPObjects[Object] then
+                    local FakePlayer = {Name = Object.Name, Character = Object}
+                    ESPObjects[Object] = {}
+                    CreateESP(FakePlayer)
                 end
             end
         end
     end
-    local ActiveChars = {}
-    for _, Char in ipairs(TargetList) do
-        ActiveChars[Char] = true
-        if not TrackedCharacters[Char] then
-            local Data = GetCharacterData(Char)
-            if Data then
-                TrackedCharacters[Char] = CreateESP(Data)
-            end
-        end
-        if TrackedCharacters[Char] then
-            TrackedCharacters[Char](Char)
-        end
-    end
-    for Char, _ in pairs(TrackedCharacters) do
-        if not ActiveChars[Char] then
-            TrackedCharacters[Char] = nil
-        end
-    end
 end)
 
+-- Kendi karakterimiz yeniden doğduğunda ESP'leri temizle
 LocalPlayer.CharacterAdded:Connect(function()
-    TrackedCharacters = {}
+    for Player, Objects in pairs(ESPObjects) do
+        if typeof(Player) == "Instance" and Player:IsA("Player") then continue end
+        for _, v in pairs(Objects) do
+            if v and v.Remove then v:Remove() end
+        end
+        ESPObjects[Player] = nil
+    end
 end)
 
-print("ESP Aktif - GitHub Raw Link Versiyon")
+print("ESP v3.2 Yüklendi - GitHub Raw Uyumlu - Tüm Executorlar")
