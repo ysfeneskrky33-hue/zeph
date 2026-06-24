@@ -10,11 +10,52 @@ local S = {
 ESP_On = true, ESP_Box = true, ESP_Name = true, ESP_HP = true, ESP_Tracer = true, ESP_Dist = true,
 ESP_Chams = true, ESP_ChamsColor = Color3.fromRGB(255, 0, 0),
 AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 4, AIM_Part = "Head",
+AIM_ShowFOV = true,
 SIL_On = false, SIL_Team = false, SIL_Vis = true, SIL_Part = "Head", SIL_FOV = 150, SIL_Chance = 100
 }
 
 local ESP_Data = {}
 local Chams_Data = {}
+local FOV_Circle = nil
+local RightMouseDown = false
+
+-- FOV Dairesi
+local function CreateFOVCircle()
+if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end
+if not S.AIM_ShowFOV or not Drawing then return end
+FOV_Circle = Drawing.new("Circle")
+FOV_Circle.Radius = S.AIM_FOV
+FOV_Circle.Thickness = 1
+FOV_Circle.Color = Color3.fromRGB(0, 255, 255)
+FOV_Circle.Filled = false
+FOV_Circle.Visible = true
+FOV_Circle.Position = UserInputService:GetMouseLocation()
+end
+
+local function UpdateFOVCircle()
+if FOV_Circle then
+FOV_Circle.Position = UserInputService:GetMouseLocation()
+FOV_Circle.Radius = S.AIM_FOV
+FOV_Circle.Visible = S.AIM_On and S.AIM_ShowFOV and RightMouseDown
+end
+end
+
+-- Sağ tık yakalama
+UserInputService.InputBegan:Connect(function(Input, GPE)
+if GPE then return end
+if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+RightMouseDown = true
+if S.AIM_ShowFOV and FOV_Circle then FOV_Circle.Visible = true end
+end
+end)
+
+UserInputService.InputEnded:Connect(function(Input, GPE)
+if GPE then return end
+if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+RightMouseDown = false
+if FOV_Circle then FOV_Circle.Visible = false end
+end
+end)
 
 local function IsVisible(Part)
 if not Part then return false end
@@ -101,6 +142,43 @@ if S.ESP_Tracer and D.Tr then D.Tr.From = Vector2.new(Camera.ViewportSize.X/2, C
 end)
 end
 
+-- AIMBOT - Sadece sağ tık basılıyken
+RunService.RenderStepped:Connect(function()
+UpdateFOVCircle()
+if not S.AIM_On or not RightMouseDown then return end
+local T = GetTarget(S.AIM_FOV, S.AIM_Team, S.AIM_Vis)
+if T and T.Character then
+local Part = T.Character:FindFirstChild(S.AIM_Part) or T.Character:FindFirstChild("Head")
+if Part then
+local TP = Camera:WorldToViewportPoint(Part.Position)
+local MP = UserInputService:GetMouseLocation()
+local Sm = S.AIM_Smooth / 10
+mousemoverel((TP.X - MP.X) * Sm, (TP.Y - MP.Y) * Sm)
+end
+end
+end)
+
+-- SILENT - GUI'den açıldığı an aktif (sürekli)
+local OldNC
+pcall(function()
+OldNC = hookmetamethod(game, "__namecall", function(self, ...)
+local args = {...}
+local method = getnamecallmethod()
+if method == "FireServer" and self.Name == "RemoteEvent" and S.SIL_On then
+local T = GetTarget(S.SIL_FOV, S.SIL_Team, S.SIL_Vis)
+if T and T.Character then
+local Part = T.Character:FindFirstChild(S.SIL_Part) or T.Character:FindFirstChild("Head")
+if Part and math.random(1,100) <= S.SIL_Chance then
+if args[1] and typeof(args[1]) == "table" and args[1].Position then
+args[1] = Part
+end
+end
+end
+end
+return OldNC(self, unpack(args))
+end)
+end)
+
 local function CreateGUI()
 local SG = nil
 local Parents = {LocalPlayer:FindFirstChild("PlayerGui"), CoreGui, StarterGui, LocalPlayer}
@@ -116,24 +194,20 @@ if SG and SG.Parent then break end
 end
 end
 if not SG or not SG.Parent then
--- ÇARESİZ: BillboardGui ile dene
 pcall(function()
 local Billboard = Instance.new("BillboardGui")
 Billboard.Name = "GINSv3_Billboard"
-Billboard.Size = UDim2.new(0, 300, 0, 350)
+Billboard.Size = UDim2.new(0, 320, 0, 400)
 Billboard.AlwaysOnTop = true
 Billboard.Parent = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") or workspace
 SG = Billboard
 end)
 end
-if not SG or not SG.Parent then
-warn("GUI OLUSTURULAMADI!")
-return
-end
+if not SG or not SG.Parent then warn("GUI OLUSTURULAMADI!") return end
 
 local Main = Instance.new("Frame", SG)
-Main.Size = UDim2.new(0, 280, 0, 360)
-Main.Position = UDim2.new(0.5, -140, 0.3, 0)
+Main.Size = UDim2.new(0, 300, 0, 380)
+Main.Position = UDim2.new(0.5, -150, 0.25, 0)
 Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Main.BorderSizePixel = 1
 Main.BorderColor3 = Color3.fromRGB(80,80,80)
@@ -143,7 +217,7 @@ Main.Draggable = true
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Title.Text = "GINS v3.0"
+Title.Text = "GINS v3.1"
 Title.TextColor3 = Color3.fromRGB(255,50,50)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -179,7 +253,7 @@ Page.Size = UDim2.new(1,-6,1,-64)
 Page.Position = UDim2.new(0,3,0,62)
 Page.BackgroundTransparency = 1
 Page.ScrollBarThickness = 4
-Page.CanvasSize = UDim2.new(0,0,0,250)
+Page.CanvasSize = UDim2.new(0,0,0,300)
 Page.Visible = false
 Btn.MouseButton1Click:Connect(function()
 for _, t in ipairs(Tabs) do t.BackgroundColor3 = Color3.fromRGB(30,30,30) end
@@ -226,6 +300,55 @@ end)
 YT[1] = Y + 26
 end
 
+local function AddSlider(Page, Text, Min, Max, Default, CB, YT)
+local Y = YT[1]
+local F = Instance.new("Frame", Page)
+F.Size = UDim2.new(1,-4,0,30)
+F.Position = UDim2.new(0,2,0,Y)
+F.BackgroundTransparency = 1
+local L = Instance.new("TextLabel", F)
+L.Size = UDim2.new(0.6,0,1,0)
+L.BackgroundTransparency = 1
+L.Text = Text .. ": " .. tostring(Default)
+L.TextColor3 = Color3.new(0.9,0.9,0.9)
+L.Font = Enum.Font.Gotham
+L.TextSize = 11
+L.TextXAlignment = Enum.TextXAlignment.Left
+local Slider = Instance.new("Frame", F)
+Slider.Size = UDim2.new(0.35,0,0,14)
+Slider.Position = UDim2.new(0.6,0,0.5,-7)
+Slider.BackgroundColor3 = Color3.fromRGB(40,40,40)
+local Fill = Instance.new("Frame", Slider)
+Fill.Size = UDim2.new((Default - Min) / (Max - Min), 0, 1, 0)
+Fill.BackgroundColor3 = Color3.fromRGB(0,170,0)
+Fill.BorderSizePixel = 0
+local Val = Default
+local Dragging = false
+Slider.InputBegan:Connect(function(Input)
+if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+Dragging = true
+local X = math.clamp((Input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
+Val = math.floor(Min + (Max - Min) * X)
+Fill.Size = UDim2.new(X, 0, 1, 0)
+L.Text = Text .. ": " .. tostring(Val)
+CB(Val)
+end
+end)
+UserInputService.InputEnded:Connect(function(Input)
+if Input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(Input)
+if Dragging and Input.UserInputType == Enum.UserInputType.MouseMovement then
+local X = math.clamp((Input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
+Val = math.floor(Min + (Max - Min) * X)
+Fill.Size = UDim2.new(X, 0, 1, 0)
+L.Text = Text .. ": " .. tostring(Val)
+CB(Val)
+end
+end)
+YT[1] = Y + 32
+end
+
 local EY = {0}
 AddToggle(ESP_Page, "ESP Acik", true, function(v) S.ESP_On = v end, EY)
 AddToggle(ESP_Page, "Kutular", true, function(v) S.ESP_Box = v end, EY)
@@ -242,51 +365,26 @@ end, EY)
 ESP_Page.CanvasSize = UDim2.new(0,0,0,EY[1]+10)
 
 local AY = {0}
-AddToggle(AIM_Page, "Aimbot Acik", false, function(v) S.AIM_On = v end, AY)
+AddToggle(AIM_Page, "Aimbot Acik", false, function(v) S.AIM_On = v
+if v and S.AIM_ShowFOV then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
+end, AY)
 AddToggle(AIM_Page, "Takim Kontrol", false, function(v) S.AIM_Team = v end, AY)
 AddToggle(AIM_Page, "Gorunurluk", true, function(v) S.AIM_Vis = v end, AY)
+AddToggle(AIM_Page, "FOV Dairesi", true, function(v) S.AIM_ShowFOV = v
+if v and S.AIM_On then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
+end, AY)
+AddSlider(AIM_Page, "FOV Derecesi", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
+AddSlider(AIM_Page, "Yumusaklik", 1, 20, 4, function(v) S.AIM_Smooth = v end, AY)
 AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
 local SY = {0}
 AddToggle(SIL_Page, "Silent Acik", false, function(v) S.SIL_On = v end, SY)
 AddToggle(SIL_Page, "Takim Kontrol", false, function(v) S.SIL_Team = v end, SY)
 AddToggle(SIL_Page, "Gorunurluk", true, function(v) S.SIL_Vis = v end, SY)
+AddSlider(SIL_Page, "FOV", 20, 300, 150, function(v) S.SIL_FOV = v end, SY)
+AddSlider(SIL_Page, "Sans %", 1, 100, 100, function(v) S.SIL_Chance = v end, SY)
 SIL_Page.CanvasSize = UDim2.new(0,0,0,SY[1]+10)
 end
-
-RunService.RenderStepped:Connect(function()
-if not S.AIM_On then return end
-local T = GetTarget(S.AIM_FOV, S.AIM_Team, S.AIM_Vis)
-if T and T.Character then
-local Part = T.Character:FindFirstChild(S.AIM_Part) or T.Character:FindFirstChild("Head")
-if Part then
-local TP = Camera:WorldToViewportPoint(Part.Position)
-local MP = UserInputService:GetMouseLocation()
-local Sm = S.AIM_Smooth / 10
-mousemoverel((TP.X - MP.X) * Sm, (TP.Y - MP.Y) * Sm)
-end
-end
-end)
-
-local OldNC
-pcall(function()
-OldNC = hookmetamethod(game, "__namecall", function(self, ...)
-local args = {...}
-local method = getnamecallmethod()
-if method == "FireServer" and self.Name == "RemoteEvent" and S.SIL_On then
-local T = GetTarget(S.SIL_FOV, S.SIL_Team, S.SIL_Vis)
-if T and T.Character then
-local Part = T.Character:FindFirstChild(S.SIL_Part) or T.Character:FindFirstChild("Head")
-if Part and math.random(1,100) <= S.SIL_Chance then
-if args[1] and typeof(args[1]) == "table" and args[1].Position then
-args[1] = Part
-end
-end
-end
-end
-return OldNC(self, unpack(args))
-end)
-end)
 
 local function AddPlayer(Plr)
 if Plr == LocalPlayer then return end
@@ -318,6 +416,5 @@ task.spawn(function()
 while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
 task.wait(0.3)
 CreateGUI()
-print("GINS v3.0 SURVIVAL - GUI HAZIR")
+print("GINS v3.1 - AIMBOT sag tik, FOV daire, SILENT surekli aktif")
 end)
-
