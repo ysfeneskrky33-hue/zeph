@@ -40,7 +40,6 @@ FOV_Circle.Visible = S.AIM_On and S.AIM_ShowFOV and RightMouseDown
 end
 end
 
--- Sağ tık
 UserInputService.InputBegan:Connect(function(Input, GPE)
 if GPE then return end
 if Input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -57,7 +56,6 @@ if FOV_Circle then FOV_Circle.Visible = false end
 end
 end)
 
--- Görünürlük - DÜZELTİLDİ
 local function IsVisible(Part)
 if not Part then return false end
 local Origin = Camera.CFrame.Position
@@ -74,7 +72,6 @@ end
 return true
 end
 
--- Hedef bulma - DÜZELTİLDİ
 local function GetTarget(FOV, TeamCheck, VisCheck)
 local Best = nil
 local BestDist = FOV
@@ -158,7 +155,7 @@ if S.ESP_Tracer and D.Tr then D.Tr.From = Vector2.new(Camera.ViewportSize.X/2, C
 end)
 end
 
--- AIMBOT - DÜZELTİLDİ
+-- AIMBOT
 RunService.RenderStepped:Connect(function()
 UpdateFOVCircle()
 if not S.AIM_On or not RightMouseDown then return end
@@ -177,27 +174,79 @@ end
 end
 end)
 
--- SILENT - DÜZELTİLDİ (tüm RemoteEvent'leri yakalar)
-local OldNamecall
+-- =============================================
+-- SILENT - COMPLETE REWRITE
+-- =============================================
+local function FindTargetForSilent()
+return GetTarget(S.SIL_FOV, S.SIL_Team, S.SIL_Vis)
+end
+
+-- Hook tüm RemoteEvent ve RemoteFunction'ları
+local OldFireServer
+local OldInvokeServer
+
+-- FireServer hook
 pcall(function()
-OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+OldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
 local Args = {...}
 local Method = getnamecallmethod()
-if Method == "FireServer" and S.SIL_On then
-local T = GetTarget(S.SIL_FOV, S.SIL_Team, S.SIL_Vis)
-if T and T.Character then
-local Part = T.Character:FindFirstChild("Head")
+
+if S.SIL_On and (Method == "FireServer" or Method == "FireAllClients") then
+local Target = FindTargetForSilent()
+if Target and Target.Character then
+local Part = Target.Character:FindFirstChild("Head")
+if Part and math.random(1, 100) <= S.SIL_Chance then
+-- Argümanları tara ve CFrame/Vector3/Instance pozisyonlarını değiştir
+for i, Arg in ipairs(Args) do
+if typeof(Arg) == "table" and Arg.Position and Arg.Parent then
+-- Bu bir Instance (Part) olabilir
+Args[i] = Part
+elseif typeof(Arg) == "CFrame" then
+-- CFrame'i hedefin kafasına çevir
+Args[i] = CFrame.new(Part.Position)
+elseif typeof(Arg) == "Vector3" then
+-- Vector3'ü hedefin pozisyonuna çevir
+Args[i] = Part.Position
+elseif typeof(Arg) == "table" and Arg.X and Arg.Y and Arg.Z then
+-- Vector3 benzeri tablo
+Args[i] = {X = Part.Position.X, Y = Part.Position.Y, Z = Part.Position.Z}
+end
+end
+end
+end
+end
+
+return OldFireServer(self, unpack(Args))
+end)
+end)
+
+-- InvokeServer hook (RemoteFunction için)
+pcall(function()
+OldInvokeServer = hookmetamethod(game, "__namecall", function(self, ...)
+local Args = {...}
+local Method = getnamecallmethod()
+
+if S.SIL_On and Method == "InvokeServer" then
+local Target = FindTargetForSilent()
+if Target and Target.Character then
+local Part = Target.Character:FindFirstChild("Head")
 if Part and math.random(1, 100) <= S.SIL_Chance then
 for i, Arg in ipairs(Args) do
 if typeof(Arg) == "table" and Arg.Position and Arg.Parent then
 Args[i] = Part
-break
+elseif typeof(Arg) == "CFrame" then
+Args[i] = CFrame.new(Part.Position)
+elseif typeof(Arg) == "Vector3" then
+Args[i] = Part.Position
+elseif typeof(Arg) == "table" and Arg.X and Arg.Y and Arg.Z then
+Args[i] = {X = Part.Position.X, Y = Part.Position.Y, Z = Part.Position.Z}
 end
 end
 end
 end
 end
-return OldNamecall(self, unpack(Args))
+
+return OldInvokeServer(self, unpack(Args))
 end)
 end)
 
@@ -228,8 +277,8 @@ end
 if not SG or not SG.Parent then warn("GUI OLUSTURULAMADI!") return end
 
 local Main = Instance.new("Frame", SG)
-Main.Size = UDim2.new(0, 300, 0, 400)
-Main.Position = UDim2.new(0.5, -150, 0.2, 0)
+Main.Size = UDim2.new(0, 300, 0, 420)
+Main.Position = UDim2.new(0.5, -150, 0.15, 0)
 Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Main.BorderSizePixel = 1
 Main.BorderColor3 = Color3.fromRGB(80,80,80)
@@ -239,7 +288,7 @@ Main.Draggable = true
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Title.Text = "GINS v3.2"
+Title.Text = "GINS v3.3"
 Title.TextColor3 = Color3.fromRGB(255,50,50)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -275,7 +324,7 @@ Page.Size = UDim2.new(1,-6,1,-64)
 Page.Position = UDim2.new(0,3,0,62)
 Page.BackgroundTransparency = 1
 Page.ScrollBarThickness = 4
-Page.CanvasSize = UDim2.new(0,0,0,350)
+Page.CanvasSize = UDim2.new(0,0,0,380)
 Page.Visible = false
 Btn.MouseButton1Click:Connect(function()
 for _, t in ipairs(Tabs) do t.BackgroundColor3 = Color3.fromRGB(30,30,30) end
@@ -438,5 +487,5 @@ task.spawn(function()
 while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
 task.wait(0.3)
 CreateGUI()
-print("GINS v3.2 - AIMBOT sag tik, SILENT surekli, her ikisi de duzeltildi")
+print("GINS v3.3 - SILENT tamamen yenilendi, FireServer/InvokeServer destekli")
 end)
