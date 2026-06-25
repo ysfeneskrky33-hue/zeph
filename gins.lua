@@ -9,9 +9,8 @@ local Camera = workspace.CurrentCamera
 local S = {
 ESP_On = true, ESP_Box = true, ESP_Name = true, ESP_HP = true, ESP_Tracer = true, ESP_Dist = true,
 ESP_Chams = true, ESP_ChamsColor = Color3.fromRGB(255, 0, 0),
-AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 4,
-AIM_ShowFOV = true,
-SIL_On = false, SIL_Team = false, SIL_Vis = true, SIL_FOV = 150, SIL_Chance = 100
+AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 0.5,
+AIM_ShowFOV = true
 }
 
 local ESP_Data = {}
@@ -155,7 +154,7 @@ if S.ESP_Tracer and D.Tr then D.Tr.From = Vector2.new(Camera.ViewportSize.X/2, C
 end)
 end
 
--- AIMBOT
+-- AIMBOT - SERTLEŞTİRİLDİ (Smooth 0.5, anında kitlenme)
 RunService.RenderStepped:Connect(function()
 UpdateFOVCircle()
 if not S.AIM_On or not RightMouseDown then return end
@@ -166,203 +165,16 @@ if Part then
 local TP, On = Camera:WorldToViewportPoint(Part.Position)
 if On then
 local MP = UserInputService:GetMouseLocation()
-local DX = (TP.X - MP.X) * (S.AIM_Smooth / 100)
-local DY = (TP.Y - MP.Y) * (S.AIM_Smooth / 100)
+local DX = (TP.X - MP.X) * (S.AIM_Smooth / 10)
+local DY = (TP.Y - MP.Y) * (S.AIM_Smooth / 10)
+if math.abs(DX) > 0.5 or math.abs(DY) > 0.5 then
 mousemoverel(DX, DY)
-end
-end
-end
-end)
-
--- =============================================
--- SILENT v3.5 - TÜM SİLAHLAR İÇİN EVRENSEL
--- =============================================
-local function GetSilentTarget()
-return GetTarget(S.SIL_FOV, S.SIL_Team, S.SIL_Vis)
-end
-
--- 1. Tool Fire (Tüm tool'lar)
-pcall(function()
-local OldIndex
-OldIndex = hookmetamethod(game, "__index", function(self, Key)
-if S.SIL_On and Key == "Fire" and self:IsA("Tool") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-return function(...)
-local Args = {...}
-if #Args >= 1 then
-if typeof(Args[1]) == "CFrame" then
-Args[1] = CFrame.new(Part.Position)
-elseif typeof(Args[1]) == "Vector3" then
-Args[1] = Part.Position
-elseif typeof(Args[1]) == "table" and Args[1].X then
-Args[1] = {X = Part.Position.X, Y = Part.Position.Y, Z = Part.Position.Z}
-end
-end
-if #Args >= 2 and typeof(Args[2]) == "CFrame" then
-Args[2] = CFrame.new(Part.Position)
-end
-return self.Fire(self, unpack(Args))
+else
+mousemoverel(TP.X - MP.X, TP.Y - MP.Y)
 end
 end
 end
 end
-if S.SIL_On and Key == "Activate" and self:IsA("HopperBin") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-return function(...)
-return self.Activate(self, Part, ...)
-end
-end
-end
-end
-return OldIndex(self, Key)
-end)
-end)
-
--- 2. Mouse / Click
-pcall(function()
-local OldClick
-OldClick = hookmetamethod(game, "__namecall", function(self, ...)
-local Args = {...}
-local Method = getnamecallmethod()
-if S.SIL_On and (Method == "Click" or Method == "Fire" or Method == "InputDown") and self:IsA("Mouse") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-if #Args >= 1 and typeof(Args[1]) == "CFrame" then
-Args[1] = CFrame.new(Part.Position)
-elseif #Args >= 1 and typeof(Args[1]) == "Vector3" then
-Args[1] = Part.Position
-end
-if #Args >= 2 and typeof(Args[2]) == "CFrame" then
-Args[2] = CFrame.new(Part.Position)
-end
-end
-end
-end
-return OldClick(self, unpack(Args))
-end)
-end)
-
--- 3. Projectile Velocity
-pcall(function()
-local OldNewIndex
-OldNewIndex = hookmetamethod(game, "__newindex", function(self, Key, Value)
-if S.SIL_On and Key == "Velocity" and self:IsA("Projectile") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-local Direction = (Part.Position - self.Position).Unit * Value.Magnitude
-return rawset(self, Key, Direction)
-end
-end
-end
-if S.SIL_On and Key == "Target" and self:IsA("Projectile") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-return rawset(self, Key, Part.Position)
-end
-end
-end
-if S.SIL_On and Key == "Direction" and self:IsA("Projectile") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-return rawset(self, Key, (Part.Position - self.Position).Unit)
-end
-end
-end
-return rawset(self, Key, Value)
-end)
-end)
-
--- 4. Bullet / Raycast (Atış sorguları)
-pcall(function()
-local OldRaycast
-OldRaycast = hookmetamethod(game, "__namecall", function(self, ...)
-local Args = {...}
-local Method = getnamecallmethod()
-if S.SIL_On and Method == "Raycast" and self:IsA("Workspace") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-if #Args >= 2 and typeof(Args[2]) == "Ray" then
-local Origin = Args[2].Origin
-local Direction = (Part.Position - Origin).Unit * 1000
-Args[2] = Ray.new(Origin, Direction)
-end
-end
-end
-end
-return OldRaycast(self, unpack(Args))
-end)
-end)
-
--- 5. RemoteEvent (tüm server atışları)
-pcall(function()
-local OldFireServer
-OldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
-local Args = {...}
-local Method = getnamecallmethod()
-if S.SIL_On and (Method == "FireServer" or Method == "InvokeServer" or Method == "FireAllClients" or Method == "Send") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-for i, Arg in ipairs(Args) do
-if typeof(Arg) == "table" and Arg.Position and Arg.Parent then
-Args[i] = Part
-elseif typeof(Arg) == "CFrame" then
-Args[i] = CFrame.new(Part.Position)
-elseif typeof(Arg) == "Vector3" then
-Args[i] = Part.Position
-elseif typeof(Arg) == "table" and Arg.X and Arg.Y and Arg.Z then
-Args[i] = {X = Part.Position.X, Y = Part.Position.Y, Z = Part.Position.Z}
-elseif typeof(Arg) == "userdata" and Arg.Position then
-Args[i] = Part
-end
-end
-end
-end
-end
-return OldFireServer(self, unpack(Args))
-end)
-end)
-
--- 6. Weapon Module Script (LocalScript atışları)
-pcall(function()
-local OldRequire
-OldRequire = hookmetamethod(game, "__namecall", function(self, ...)
-local Args = {...}
-local Method = getnamecallmethod()
-if S.SIL_On and Method == "Invoke" and self:IsA("ModuleScript") then
-local Target = GetSilentTarget()
-if Target and Target.Character then
-local Part = Target.Character:FindFirstChild("Head")
-if Part and math.random(1, 100) <= S.SIL_Chance then
-for i, Arg in ipairs(Args) do
-if typeof(Arg) == "table" and Arg.Position then
-Args[i] = Part.Position
-elseif typeof(Arg) == "Vector3" then
-Args[i] = Part.Position
-end
-end
-end
-end
-end
-return OldRequire(self, unpack(Args))
-end)
 end)
 
 local function CreateGUI()
@@ -383,7 +195,7 @@ if not SG or not SG.Parent then
 pcall(function()
 local Billboard = Instance.new("BillboardGui")
 Billboard.Name = "GINSv3_Billboard"
-Billboard.Size = UDim2.new(0, 320, 0, 440)
+Billboard.Size = UDim2.new(0, 320, 0, 480)
 Billboard.AlwaysOnTop = true
 Billboard.Parent = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") or workspace
 SG = Billboard
@@ -392,8 +204,8 @@ end
 if not SG or not SG.Parent then warn("GUI OLUSTURULAMADI!") return end
 
 local Main = Instance.new("Frame", SG)
-Main.Size = UDim2.new(0, 300, 0, 440)
-Main.Position = UDim2.new(0.5, -150, 0.12, 0)
+Main.Size = UDim2.new(0, 300, 0, 480)
+Main.Position = UDim2.new(0.5, -150, 0.1, 0)
 Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Main.BorderSizePixel = 1
 Main.BorderColor3 = Color3.fromRGB(80,80,80)
@@ -403,10 +215,10 @@ Main.Draggable = true
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Title.Text = "GINS v3.5 - TUM SILAHLAR"
+Title.Text = "GINS v3.6"
 Title.TextColor3 = Color3.fromRGB(255,50,50)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 13
+Title.TextSize = 14
 
 local CloseBtn = Instance.new("TextButton", Main)
 CloseBtn.Size = UDim2.new(0,30,0,30)
@@ -426,20 +238,20 @@ TabF.BackgroundColor3 = Color3.fromRGB(20,20,20)
 local Pages, Tabs = {}, {}
 local function MakeTab(Name)
 local Btn = Instance.new("TextButton", TabF)
-Btn.Size = UDim2.new(1/3, -2, 1, 0)
-Btn.Position = UDim2.new(#Tabs/3, 1, 0, 0)
+Btn.Size = UDim2.new(1/4, -2, 1, 0)
+Btn.Position = UDim2.new(#Tabs/4, 1, 0, 0)
 Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Btn.Text = Name
 Btn.TextColor3 = Color3.new(0.8,0.8,0.8)
 Btn.Font = Enum.Font.GothamBold
-Btn.TextSize = 11
+Btn.TextSize = 10
 Btn.AutoButtonColor = false
 local Page = Instance.new("ScrollingFrame", Main)
 Page.Size = UDim2.new(1,-6,1,-64)
 Page.Position = UDim2.new(0,3,0,62)
 Page.BackgroundTransparency = 1
 Page.ScrollBarThickness = 4
-Page.CanvasSize = UDim2.new(0,0,0,400)
+Page.CanvasSize = UDim2.new(0,0,0,450)
 Page.Visible = false
 Btn.MouseButton1Click:Connect(function()
 for _, t in ipairs(Tabs) do t.BackgroundColor3 = Color3.fromRGB(30,30,30) end
@@ -453,7 +265,7 @@ end
 
 local ESP_Page, ESP_Tab = MakeTab("ESP")
 local AIM_Page, AIM_Tab = MakeTab("AIMBOT")
-local SIL_Page, SIL_Tab = MakeTab("SILENT")
+local ADMIN_Page, ADMIN_Tab = MakeTab("ADMIN")
 ESP_Tab.BackgroundColor3 = Color3.fromRGB(60,60,60)
 ESP_Page.Visible = true
 
@@ -535,6 +347,20 @@ end)
 YT[1] = Y + 32
 end
 
+local function AddText(Page, Text, YT)
+local Y = YT[1]
+local L = Instance.new("TextLabel", Page)
+L.Size = UDim2.new(1,-4,0,20)
+L.Position = UDim2.new(0,2,0,Y)
+L.BackgroundTransparency = 1
+L.Text = Text
+L.TextColor3 = Color3.new(0.7,0.7,0.7)
+L.Font = Enum.Font.Gotham
+L.TextSize = 10
+L.TextXAlignment = Enum.TextXAlignment.Left
+YT[1] = Y + 22
+end
+
 local EY = {0}
 AddToggle(ESP_Page, "ESP Acik", true, function(v) S.ESP_On = v end, EY)
 AddToggle(ESP_Page, "Kutular", true, function(v) S.ESP_Box = v end, EY)
@@ -560,16 +386,16 @@ AddToggle(AIM_Page, "FOV Dairesi", true, function(v) S.AIM_ShowFOV = v
 if v and S.AIM_On then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
 end, AY)
 AddSlider(AIM_Page, "FOV Derecesi", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
-AddSlider(AIM_Page, "Yumusaklik", 1, 20, 4, function(v) S.AIM_Smooth = v end, AY)
+AddSlider(AIM_Page, "Sertlik", 1, 10, 5, function(v) S.AIM_Smooth = v / 10 end, AY)
 AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
-local SY = {0}
-AddToggle(SIL_Page, "Silent Acik (Tum Silahlar)", false, function(v) S.SIL_On = v end, SY)
-AddToggle(SIL_Page, "Takim Kontrol", false, function(v) S.SIL_Team = v end, SY)
-AddToggle(SIL_Page, "Gorunurluk Kontrol", true, function(v) S.SIL_Vis = v end, SY)
-AddSlider(SIL_Page, "FOV", 20, 300, 150, function(v) S.SIL_FOV = v end, SY)
-AddSlider(SIL_Page, "Sans %", 1, 100, 100, function(v) S.SIL_Chance = v end, SY)
-SIL_Page.CanvasSize = UDim2.new(0,0,0,SY[1]+10)
+-- ADMIN PANELİ (BOŞ)
+local ADY = {0}
+AddText(ADMIN_Page, "=== ADMIN PANELI ===", ADY)
+AddText(ADMIN_Page, "--- BURAYA EKLENECEK ---", ADY)
+AddText(ADMIN_Page, "KICK / BAN / TP / GOD MODE", ADY)
+AddText(ADMIN_Page, "VE DIGER KOMUTLAR", ADY)
+ADMIN_Page.CanvasSize = UDim2.new(0,0,0,ADY[1]+20)
 end
 
 local function AddPlayer(Plr)
@@ -602,5 +428,5 @@ task.spawn(function()
 while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
 task.wait(0.3)
 CreateGUI()
-print("GINS v3.5 - SILENT: Tool, HopperBin, Mouse, Projectile, Raycast, RemoteEvent, ModuleScript destekli")
+print("GINS v3.6 - SILENT KALDIRILDI, AIMBOT SERT, ADMIN PANELI HAZIR")
 end)
