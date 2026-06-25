@@ -1,7 +1,5 @@
--- SADECE ESP + AIMBOT + ADMIN - BASIT VE CALISIR
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -19,7 +17,9 @@ local ESP_Data = {}
 local FOV_Circle = nil
 local RightMouseDown = false
 local FlySpeed = 50
+local SelectedPlayer = nil
 
+-- FOV Circle
 local function CreateFOVCircle()
     if FOV_Circle then FOV_Circle:Remove() end
     if not Drawing then return end
@@ -32,6 +32,7 @@ local function CreateFOVCircle()
     FOV_Circle.Position = UserInputService:GetMouseLocation()
 end
 
+-- Mouse events
 UserInputService.InputBegan:Connect(function(Input, GPE)
     if GPE then return end
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -48,6 +49,7 @@ UserInputService.InputEnded:Connect(function(Input, GPE)
     end
 end)
 
+-- Visibility check
 local function IsVisible(Part)
     if not Part then return false end
     local RP = RaycastParams.new()
@@ -57,6 +59,7 @@ local function IsVisible(Part)
     return Result == nil
 end
 
+-- Get target
 local function GetTarget()
     local Best, BestDist = nil, S.AIM_FOV
     local MousePos = UserInputService:GetMouseLocation()
@@ -78,6 +81,79 @@ local function GetTarget()
     return Best
 end
 
+-- Kill player
+local function KillPlayer(Plr)
+    if Plr and Plr.Character then
+        local Hum = Plr.Character:FindFirstChild("Humanoid")
+        if Hum then
+            Hum.Health = 0
+            task.wait(0.05)
+            Plr.Character:BreakJoints()
+        end
+    end
+end
+
+-- Jail player
+local function JailPlayer(Plr)
+    if Plr and Plr.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        if Root then
+            local Pos = Root.Position
+            local Jail = Instance.new("Part")
+            Jail.Size = Vector3.new(8, 8, 8)
+            Jail.Position = Pos
+            Jail.Anchored = true
+            Jail.CanCollide = true
+            Jail.BrickColor = BrickColor.new("Bright red")
+            Jail.Transparency = 0.3
+            Jail.Parent = workspace
+            Jail.Name = "Jail_" .. Plr.Name
+            Root.CFrame = CFrame.new(Jail.Position)
+            local Sizes = {
+                {Vector3.new(0, 0, 4), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(0, 0, -4), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(4, 0, 0), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(-4, 0, 0), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(0, 4, 0), Vector3.new(0.5, 0.5, 8)},
+                {Vector3.new(0, -4, 0), Vector3.new(0.5, 0.5, 8)}
+            }
+            for _, Data in ipairs(Sizes) do
+                local Wall = Instance.new("Part")
+                Wall.Size = Data[2]
+                Wall.Position = Jail.Position + Data[1]
+                Wall.Anchored = true
+                Wall.CanCollide = true
+                Wall.BrickColor = BrickColor.new("Bright red")
+                Wall.Transparency = 0.2
+                Wall.Parent = Jail
+            end
+        end
+    end
+end
+
+-- Teleport to player
+local function TeleportToPlayer(Plr)
+    if Plr and Plr.Character and LocalPlayer.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        local LRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if Root and LRoot then
+            LRoot.CFrame = Root.CFrame * CFrame.new(0, 2, 0)
+        end
+    end
+end
+
+-- Bring player
+local function BringPlayer(Plr)
+    if Plr and Plr.Character and LocalPlayer.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        local LRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if Root and LRoot then
+            Root.CFrame = LRoot.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+end
+
+-- ESP
 local function CreateESP(Plr)
     if Plr == LocalPlayer then return end
     local Char = Plr.Character
@@ -171,6 +247,7 @@ local function CreateESP(Plr)
     end)
 end
 
+-- Aimbot loop
 RunService.RenderStepped:Connect(function()
     if FOV_Circle then
         FOV_Circle.Position = UserInputService:GetMouseLocation()
@@ -196,6 +273,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- NoClip
 RunService.RenderStepped:Connect(function()
     if S.NoClip and LocalPlayer.Character then
         for _, Part in ipairs(LocalPlayer.Character:GetDescendants()) do
@@ -204,6 +282,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- Fly
 RunService.RenderStepped:Connect(function()
     if S.Fly and LocalPlayer.Character then
         local Root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -226,15 +305,23 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-local function CreateGUI()
+-- GUI
+local function CreateFullGUI()
+    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not PlayerGui then
+        PlayerGui = Instance.new("ScreenGui")
+        PlayerGui.Name = "PlayerGui"
+        PlayerGui.Parent = LocalPlayer
+    end
+    
     local SG = Instance.new("ScreenGui")
     SG.Name = "GINS"
     SG.ResetOnSpawn = false
-    SG.Parent = CoreGui
-    
+    SG.Parent = PlayerGui
+
     local Main = Instance.new("Frame", SG)
-    Main.Size = UDim2.new(0, 250, 0, 350)
-    Main.Position = UDim2.new(0.5, -125, 0.3, 0)
+    Main.Size = UDim2.new(0, 280, 0, 400)
+    Main.Position = UDim2.new(0.5, -140, 0.2, 0)
     Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
     Main.BorderSizePixel = 1
     Main.BorderColor3 = Color3.fromRGB(60,60,60)
@@ -242,12 +329,22 @@ local function CreateGUI()
     Main.Draggable = true
 
     local Title = Instance.new("TextLabel", Main)
-    Title.Size = UDim2.new(1,0,0,25)
+    Title.Size = UDim2.new(1,0,0,28)
     Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    Title.Text = "GINS"
+    Title.Text = "GINS v5.0"
     Title.TextColor3 = Color3.fromRGB(255,50,50)
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 14
+    
+    local Close = Instance.new("TextButton", Main)
+    Close.Size = UDim2.new(0,28,0,28)
+    Close.Position = UDim2.new(1,-28,0,0)
+    Close.BackgroundColor3 = Color3.fromRGB(60,0,0)
+    Close.Text = "X"
+    Close.TextColor3 = Color3.new(1,1,1)
+    Close.Font = Enum.Font.GothamBold
+    Close.TextSize = 14
+    Close.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
 
     local function AddToggle(Text, Default, CB, Y)
         local F = Instance.new("Frame", Main)
@@ -325,7 +422,55 @@ local function CreateGUI()
         return Y + 30
     end
 
-    local Y = 30
+    local function AddButton(Text, CB, Y)
+        local B = Instance.new("TextButton", Main)
+        B.Size = UDim2.new(1,-10,0,26)
+        B.Position = UDim2.new(0,5,0,Y)
+        B.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        B.Text = Text
+        B.TextColor3 = Color3.new(1,1,1)
+        B.Font = Enum.Font.GothamBold
+        B.TextSize = 11
+        B.MouseButton1Click:Connect(CB)
+        return Y + 28
+    end
+
+    local function AddDropdown(Text, Options, CB, Y)
+        local F = Instance.new("Frame", Main)
+        F.Size = UDim2.new(1,-10,0,26)
+        F.Position = UDim2.new(0,5,0,Y)
+        F.BackgroundTransparency = 1
+        local L = Instance.new("TextLabel", F)
+        L.Size = UDim2.new(0.35,0,1,0)
+        L.BackgroundTransparency = 1
+        L.Text = Text
+        L.TextColor3 = Color3.new(0.9,0.9,0.9)
+        L.Font = Enum.Font.Gotham
+        L.TextSize = 10
+        L.TextXAlignment = Enum.TextXAlignment.Left
+        local Drop = Instance.new("TextButton", F)
+        Drop.Size = UDim2.new(0.6,0,1,0)
+        Drop.Position = UDim2.new(0.38,0,0,0)
+        Drop.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        Drop.Text = Options[1]
+        Drop.TextColor3 = Color3.new(1,1,1)
+        Drop.Font = Enum.Font.Gotham
+        Drop.TextSize = 10
+        local State = Options[1]
+        Drop.MouseButton1Click:Connect(function()
+            local Current = 1
+            for i, Opt in ipairs(Options) do
+                if Opt == State then Current = i break end
+            end
+            Current = Current % #Options + 1
+            State = Options[Current]
+            Drop.Text = State
+            CB(State)
+        end)
+        return Y + 28
+    end
+
+    local Y = 35
     Y = AddToggle("ESP", true, function(v) S.ESP_On = v end, Y)
     Y = AddToggle("Aimbot (Sag Tik)", false, function(v) S.AIM_On = v
         if v then CreateFOVCircle() elseif FOV_Circle then FOV_Circle:Remove() FOV_Circle = nil end
@@ -336,9 +481,35 @@ local function CreateGUI()
     Y = AddToggle("Fly", false, function(v) S.Fly = v end, Y)
     Y = AddSlider("Fly Speed", 10, 100, 50, function(v) FlySpeed = v end, Y)
     
-    Main.Size = UDim2.new(0, 250, 0, Y + 10)
+    -- Player dropdown
+    local PlayerNames = {}
+    local function UpdatePlayers()
+        PlayerNames = {}
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr ~= LocalPlayer then table.insert(PlayerNames, Plr.Name) end
+        end
+        if #PlayerNames == 0 then table.insert(PlayerNames, "None") end
+        return PlayerNames
+    end
+    
+    local SelectedPlayerName = "None"
+    local Drop = AddDropdown("Target:", UpdatePlayers(), function(v)
+        SelectedPlayerName = v
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr.Name == v then SelectedPlayer = Plr break end
+        end
+    end, Y)
+    Y = Y + 28
+    
+    Y = AddButton("Kill Player", function() if SelectedPlayer then KillPlayer(SelectedPlayer) end end, Y)
+    Y = AddButton("Jail Player", function() if SelectedPlayer then JailPlayer(SelectedPlayer) end end, Y)
+    Y = AddButton("TP To Player", function() if SelectedPlayer then TeleportToPlayer(SelectedPlayer) end end, Y)
+    Y = AddButton("Bring Player", function() if SelectedPlayer then BringPlayer(SelectedPlayer) end end, Y)
+    
+    Main.Size = UDim2.new(0, 280, 0, Y + 10)
 end
 
+-- Add players
 for _, p in ipairs(Players:GetPlayers()) do
     p.CharacterAdded:Connect(function() task.wait(0.5) CreateESP(p) end)
     if p.Character then task.wait(0.5) CreateESP(p) end
@@ -348,9 +519,10 @@ Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function() task.wait(0.5) CreateESP(p) end)
 end)
 
+-- Start
 task.spawn(function()
     while not LocalPlayer.Character do task.wait(0.5) end
     task.wait(1)
-    CreateGUI()
-    print("GINS HAZIR")
+    CreateFullGUI()
+    print("GINS v5.0 HAZIR")
 end)
