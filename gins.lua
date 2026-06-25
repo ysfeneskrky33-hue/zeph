@@ -18,7 +18,6 @@ local Chams_Data = {}
 local FOV_Circle = nil
 local RightMouseDown = false
 
--- FOV Dairesi
 local function CreateFOVCircle()
 if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end
 if not S.AIM_ShowFOV or not Drawing then return end
@@ -154,7 +153,7 @@ if S.ESP_Tracer and D.Tr then D.Tr.From = Vector2.new(Camera.ViewportSize.X/2, C
 end)
 end
 
--- AIMBOT - SERTLEŞTİRİLDİ (Smooth 0.5, anında kitlenme)
+-- AIMBOT - SERT 0.5 FIX (doğrudan kitleme)
 RunService.RenderStepped:Connect(function()
 UpdateFOVCircle()
 if not S.AIM_On or not RightMouseDown then return end
@@ -165,12 +164,12 @@ if Part then
 local TP, On = Camera:WorldToViewportPoint(Part.Position)
 if On then
 local MP = UserInputService:GetMouseLocation()
-local DX = (TP.X - MP.X) * (S.AIM_Smooth / 10)
-local DY = (TP.Y - MP.Y) * (S.AIM_Smooth / 10)
-if math.abs(DX) > 0.5 or math.abs(DY) > 0.5 then
-mousemoverel(DX, DY)
+local DX = TP.X - MP.X
+local DY = TP.Y - MP.Y
+if math.abs(DX) > 1 or math.abs(DY) > 1 then
+mousemoverel(DX * S.AIM_Smooth, DY * S.AIM_Smooth)
 else
-mousemoverel(TP.X - MP.X, TP.Y - MP.Y)
+mousemoverel(DX, DY)
 end
 end
 end
@@ -215,7 +214,7 @@ Main.Draggable = true
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,30)
 Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Title.Text = "GINS v3.6"
+Title.Text = "GINS v3.7"
 Title.TextColor3 = Color3.fromRGB(255,50,50)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -386,10 +385,9 @@ AddToggle(AIM_Page, "FOV Dairesi", true, function(v) S.AIM_ShowFOV = v
 if v and S.AIM_On then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
 end, AY)
 AddSlider(AIM_Page, "FOV Derecesi", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
-AddSlider(AIM_Page, "Sertlik", 1, 10, 5, function(v) S.AIM_Smooth = v / 10 end, AY)
+AddSlider(AIM_Page, "Sertlik (0.1-1.0)", 1, 10, 5, function(v) S.AIM_Smooth = v / 10 end, AY)
 AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
--- ADMIN PANELİ (BOŞ)
 local ADY = {0}
 AddText(ADMIN_Page, "=== ADMIN PANELI ===", ADY)
 AddText(ADMIN_Page, "--- BURAYA EKLENECEK ---", ADY)
@@ -428,5 +426,5 @@ task.spawn(function()
 while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
 task.wait(0.3)
 CreateGUI()
-print("GINS v3.6 - SILENT KALDIRILDI, AIMBOT SERT, ADMIN PANELI HAZIR")
+print("GINS v3.7 - AIMBOT SERT 0.5 FIX, ANINDA KITLENIR")
 end)
