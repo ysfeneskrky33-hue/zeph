@@ -6,9 +6,14 @@ local Camera = workspace.CurrentCamera
 
 local S = {
     ESP_On = true,
+    ESP_Box = true,
+    ESP_Name = true,
+    ESP_HP = true,
+    ESP_Tracer = true,
+    ESP_Dist = true,
     AIM_On = false,
     AIM_FOV = 120,
-    AIM_Smooth = 0.5,
+    AIM_Smooth = 1,
     NoClip = false,
     Fly = false
 }
@@ -95,7 +100,7 @@ local function JailPlayer(Plr)
         if Root then
             local Pos = Root.Position
             local Jail = Instance.new("Part")
-            Jail.Size = Vector3.new(8, 8, 8)
+            Jail.Size = Vector3.new(6, 6, 6)
             Jail.Position = Pos
             Jail.Anchored = true
             Jail.CanCollide = true
@@ -104,15 +109,16 @@ local function JailPlayer(Plr)
             Jail.Parent = workspace
             Jail.Name = "Jail_" .. Plr.Name
             Root.CFrame = CFrame.new(Jail.Position)
-            local Sizes = {
-                {Vector3.new(0, 0, 4), Vector3.new(0.5, 8, 0.5)},
-                {Vector3.new(0, 0, -4), Vector3.new(0.5, 8, 0.5)},
-                {Vector3.new(4, 0, 0), Vector3.new(0.5, 8, 0.5)},
-                {Vector3.new(-4, 0, 0), Vector3.new(0.5, 8, 0.5)},
-                {Vector3.new(0, 4, 0), Vector3.new(0.5, 0.5, 8)},
-                {Vector3.new(0, -4, 0), Vector3.new(0.5, 0.5, 8)}
+            task.wait(0.1)
+            local Walls = {
+                {Vector3.new(0, 0, 3), Vector3.new(0.5, 6, 0.5)},
+                {Vector3.new(0, 0, -3), Vector3.new(0.5, 6, 0.5)},
+                {Vector3.new(3, 0, 0), Vector3.new(0.5, 6, 0.5)},
+                {Vector3.new(-3, 0, 0), Vector3.new(0.5, 6, 0.5)},
+                {Vector3.new(0, 3, 0), Vector3.new(0.5, 0.5, 6)},
+                {Vector3.new(0, -3, 0), Vector3.new(0.5, 0.5, 6)}
             }
-            for _, Data in ipairs(Sizes) do
+            for _, Data in ipairs(Walls) do
                 local Wall = Instance.new("Part")
                 Wall.Size = Data[2]
                 Wall.Position = Jail.Position + Data[1]
@@ -178,7 +184,9 @@ local function CreateESP(Plr)
     if not Root or not Head or not Hum then return end
     
     if ESP_Data[Plr] then
-        for _, v in pairs(ESP_Data[Plr]) do v:Remove() end
+        for _, v in pairs(ESP_Data[Plr]) do
+            pcall(function() v:Remove() end)
+        end
         ESP_Data[Plr] = nil
     end
     
@@ -217,18 +225,24 @@ local function CreateESP(Plr)
     local Conn
     Conn = RunService.RenderStepped:Connect(function()
         if not S.ESP_On then
-            for _, v in pairs(D) do v.Visible = false end
+            for _, v in pairs(D) do
+                pcall(function() v.Visible = false end)
+            end
             return
         end
         if not Char or not Char.Parent or not Root or not Root.Parent then
             Conn:Disconnect()
-            for _, v in pairs(D) do v:Remove() end
+            for _, v in pairs(D) do
+                pcall(function() v:Remove() end)
+            end
             ESP_Data[Plr] = nil
             return
         end
         local Pos, On = Camera:WorldToViewportPoint(Root.Position)
         if not On then
-            for _, v in pairs(D) do v.Visible = false end
+            for _, v in pairs(D) do
+                pcall(function() v.Visible = false end)
+            end
             return
         end
         local Dist = (Camera.CFrame.Position - Root.Position).Magnitude
@@ -236,31 +250,50 @@ local function CreateESP(Plr)
         local H = math.abs((Head.Position.Y - Root.Position.Y) * 2.5) * Scale
         local W = H / 2
         
-        D.Box.Position = Vector2.new(Pos.X - W/2, Pos.Y - H/2)
-        D.Box.Size = Vector2.new(W, H)
-        D.Box.Visible = true
+        if S.ESP_Box then
+            D.Box.Position = Vector2.new(Pos.X - W/2, Pos.Y - H/2)
+            D.Box.Size = Vector2.new(W, H)
+            D.Box.Visible = true
+        else
+            D.Box.Visible = false
+        end
         
-        local Txt = Plr.Name .. " [" .. math.floor(Dist) .. "m]"
-        D.Name.Text = Txt
-        D.Name.Position = Vector2.new(Pos.X, Pos.Y - H/2 - 15)
-        D.Name.Visible = true
+        if S.ESP_Name then
+            local Txt = Plr.Name
+            if S.ESP_Dist then Txt = Txt .. " [" .. math.floor(Dist) .. "m]" end
+            D.Name.Text = Txt
+            D.Name.Position = Vector2.new(Pos.X, Pos.Y - H/2 - 15)
+            D.Name.Visible = true
+        else
+            D.Name.Visible = false
+        end
         
-        local hp = Hum.Health / Hum.MaxHealth
-        local bh = H * hp
-        D.HPbg.Position = Vector2.new(Pos.X - W/2 - 6, Pos.Y - H/2)
-        D.HPbg.Size = Vector2.new(3, H)
-        D.HPbg.Visible = true
-        D.HP.Position = Vector2.new(Pos.X - W/2 - 6, Pos.Y + H/2 - bh)
-        D.HP.Size = Vector2.new(3, bh)
-        D.HP.Color = Color3.new(1 - hp, hp, 0)
-        D.HP.Visible = true
+        if S.ESP_HP then
+            local hp = Hum.Health / Hum.MaxHealth
+            local bh = H * hp
+            D.HPbg.Position = Vector2.new(Pos.X - W/2 - 6, Pos.Y - H/2)
+            D.HPbg.Size = Vector2.new(3, H)
+            D.HPbg.Visible = true
+            D.HP.Position = Vector2.new(Pos.X - W/2 - 6, Pos.Y + H/2 - bh)
+            D.HP.Size = Vector2.new(3, bh)
+            D.HP.Color = Color3.new(1 - hp, hp, 0)
+            D.HP.Visible = true
+        else
+            D.HP.Visible = false
+            D.HPbg.Visible = false
+        end
         
-        D.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-        D.Tracer.To = Vector2.new(Pos.X, Pos.Y + H/2)
-        D.Tracer.Visible = true
+        if S.ESP_Tracer then
+            D.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+            D.Tracer.To = Vector2.new(Pos.X, Pos.Y + H/2)
+            D.Tracer.Visible = true
+        else
+            D.Tracer.Visible = false
+        end
     end)
 end
 
+-- Aimbot - Sert kitleme (Smooth=1)
 RunService.RenderStepped:Connect(function()
     if FOV_Circle then
         FOV_Circle.Position = UserInputService:GetMouseLocation()
@@ -286,14 +319,18 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- NoClip
 RunService.RenderStepped:Connect(function()
     if S.NoClip and LocalPlayer.Character then
         for _, Part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if Part:IsA("BasePart") then Part.CanCollide = false end
+            if Part:IsA("BasePart") then
+                pcall(function() Part.CanCollide = false end)
+            end
         end
     end
 end)
 
+-- Fly
 RunService.RenderStepped:Connect(function()
     if S.Fly and LocalPlayer.Character then
         local Root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -341,7 +378,7 @@ local function CreateGUI()
     local Title = Instance.new("TextLabel", Main)
     Title.Size = UDim2.new(1,0,0,28)
     Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    Title.Text = "GINS v5.0"
+    Title.Text = "GINS v5.1"
     Title.TextColor3 = Color3.fromRGB(255,50,50)
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 14
@@ -381,7 +418,7 @@ local function CreateGUI()
         Page.Position = UDim2.new(0,3,0,58)
         Page.BackgroundTransparency = 1
         Page.ScrollBarThickness = 4
-        Page.CanvasSize = UDim2.new(0,0,0,350)
+        Page.CanvasSize = UDim2.new(0,0,0,400)
         Page.Visible = false
         
         Btn.MouseButton1Click:Connect(function()
@@ -548,16 +585,11 @@ local function CreateGUI()
         S.AIM_On = v
         if v then CreateFOVCircle() elseif FOV_Circle then FOV_Circle:Remove() FOV_Circle = nil end
     end, AY)
-    AddToggle(AIM_Page, "Team Check", false, function(v) S.AIM_Team = v end, AY)
-    AddToggle(AIM_Page, "Visible Check", true, function(v) S.AIM_Vis = v end, AY)
-    AddToggle(AIM_Page, "FOV Circle", true, function(v) S.AIM_ShowFOV = v
-        if v and S.AIM_On then CreateFOVCircle() elseif FOV_Circle then FOV_Circle:Remove() FOV_Circle = nil end
-    end, AY)
     AddSlider(AIM_Page, "FOV Size", 20, 300, 120, function(v) 
         S.AIM_FOV = v 
         if FOV_Circle then FOV_Circle.Radius = v end 
     end, AY)
-    AddSlider(AIM_Page, "Smoothness", 1, 10, 5, function(v) S.AIM_Smooth = v / 10 end, AY)
+    AddSlider(AIM_Page, "Smoothness (1=Sert)", 1, 10, 1, function(v) S.AIM_Smooth = v / 10 end, AY)
     AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
     -- ADMIN PAGE
@@ -607,7 +639,6 @@ local function CreateGUI()
     
     ADMIN_Page.CanvasSize = UDim2.new(0,0,0,ADY[1]+20)
     
-    -- Player list update
     Players.PlayerAdded:Connect(function()
         local Names = UpdatePlayers()
         if #Names > 0 then
@@ -643,5 +674,5 @@ task.spawn(function()
     while not LocalPlayer.Character do task.wait(0.5) end
     task.wait(1)
     CreateGUI()
-    print("GINS v5.0 HAZIR - 3 SEKME: ESP | AIMBOT | ADMIN")
+    print("GINS v5.1 HAZIR - Tum hatalar fixlendi")
 end)
