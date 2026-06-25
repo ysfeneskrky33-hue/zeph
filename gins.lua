@@ -291,31 +291,28 @@ end
 
 local function CreateGUI()
     local SG = Instance.new("ScreenGui")
-    SG.Name = "GINSv3"
+    SG.Name = "GINS"
     SG.ResetOnSpawn = false
     SG.Parent = CoreGui
     if not SG.Parent then
-        local pg = LocalPlayer:FindFirstChild("PlayerGui")
-        if not pg then
-            pg = Instance.new("ScreenGui")
-            pg.Name = "PlayerGui"
-            pg.Parent = LocalPlayer
-        end
+        local pg = Instance.new("ScreenGui")
+        pg.Name = "PlayerGui"
+        pg.Parent = LocalPlayer
         SG.Parent = pg
     end
     if not SG.Parent then return end
 
     local Main = Instance.new("Frame", SG)
-    Main.Size = UDim2.new(0, 350, 0, 550)
-    Main.Position = UDim2.new(0.5, -175, 0.05, 0)
-    Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
+    Main.Size = UDim2.new(0, 300, 0, 450)
+    Main.Position = UDim2.new(0.5, -150, 0.2, 0)
+    Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
     Main.BorderSizePixel = 1
-    Main.BorderColor3 = Color3.fromRGB(80,80,80)
+    Main.BorderColor3 = Color3.fromRGB(60,60,60)
     Main.Active = true
     Main.Draggable = true
 
     local Title = Instance.new("TextLabel", Main)
-    Title.Size = UDim2.new(1,0,0,30)
+    Title.Size = UDim2.new(1,0,0,28)
     Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
     Title.Text = "GINS v4.5"
     Title.TextColor3 = Color3.fromRGB(255,50,50)
@@ -323,8 +320,8 @@ local function CreateGUI()
     Title.TextSize = 14
 
     local CloseBtn = Instance.new("TextButton", Main)
-    CloseBtn.Size = UDim2.new(0,30,0,30)
-    CloseBtn.Position = UDim2.new(1,-30,0,0)
+    CloseBtn.Size = UDim2.new(0,28,0,28)
+    CloseBtn.Position = UDim2.new(1,-28,0,0)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(60,0,0)
     CloseBtn.Text = "X"
     CloseBtn.TextColor3 = Color3.new(1,1,1)
@@ -333,15 +330,15 @@ local function CreateGUI()
     CloseBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
 
     local TabF = Instance.new("Frame", Main)
-    TabF.Size = UDim2.new(1,0,0,28)
-    TabF.Position = UDim2.new(0,0,0,30)
+    TabF.Size = UDim2.new(1,0,0,26)
+    TabF.Position = UDim2.new(0,0,0,28)
     TabF.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
     local Pages, Tabs = {}, {}
     local function MakeTab(Name)
         local Btn = Instance.new("TextButton", TabF)
-        Btn.Size = UDim2.new(1/4, -2, 1, 0)
-        Btn.Position = UDim2.new(#Tabs/4, 1, 0, 0)
+        Btn.Size = UDim2.new(1/3, -2, 1, 0)
+        Btn.Position = UDim2.new(#Tabs/3, 1, 0, 0)
         Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
         Btn.Text = Name
         Btn.TextColor3 = Color3.new(0.8,0.8,0.8)
@@ -349,11 +346,11 @@ local function CreateGUI()
         Btn.TextSize = 10
         Btn.AutoButtonColor = false
         local Page = Instance.new("ScrollingFrame", Main)
-        Page.Size = UDim2.new(1,-6,1,-64)
-        Page.Position = UDim2.new(0,3,0,62)
+        Page.Size = UDim2.new(1,-4,1,-60)
+        Page.Position = UDim2.new(0,2,0,58)
         Page.BackgroundTransparency = 1
         Page.ScrollBarThickness = 4
-        Page.CanvasSize = UDim2.new(0,0,0,600)
+        Page.CanvasSize = UDim2.new(0,0,0,400)
         Page.Visible = false
         Btn.MouseButton1Click:Connect(function()
             for _, t in ipairs(Tabs) do t.BackgroundColor3 = Color3.fromRGB(30,30,30) end
@@ -366,7 +363,7 @@ local function CreateGUI()
     end
 
     local ESP_Page, ESP_Tab = MakeTab("ESP")
-    local AIM_Page, AIM_Tab = MakeTab("AIMBOT")
+    local AIM_Page, AIM_Tab = MakeTab("AIM")
     local ADMIN_Page, ADMIN_Tab = MakeTab("ADMIN")
     ESP_Tab.BackgroundColor3 = Color3.fromRGB(60,60,60)
     ESP_Page.Visible = true
@@ -374,7 +371,7 @@ local function CreateGUI()
     local function AddToggle(Page, Text, Default, CB, YT)
         local Y = YT[1]
         local F = Instance.new("Frame", Page)
-        F.Size = UDim2.new(1,-4,0,24)
+        F.Size = UDim2.new(1,-4,0,22)
         F.Position = UDim2.new(0,2,0,Y)
         F.BackgroundTransparency = 1
         local L = Instance.new("TextLabel", F)
@@ -386,8 +383,8 @@ local function CreateGUI()
         L.TextSize = 11
         L.TextXAlignment = Enum.TextXAlignment.Left
         local B = Instance.new("TextButton", F)
-        B.Size = UDim2.new(0,28,0,18)
-        B.Position = UDim2.new(1,-32,0,3)
+        B.Size = UDim2.new(0,26,0,16)
+        B.Position = UDim2.new(1,-30,0,3)
         B.Text = ""
         B.BorderSizePixel = 0
         B.BackgroundColor3 = Default and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
@@ -397,13 +394,13 @@ local function CreateGUI()
             B.BackgroundColor3 = State and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
             CB(State)
         end)
-        YT[1] = Y + 26
+        YT[1] = Y + 24
     end
 
     local function AddSlider(Page, Text, Min, Max, Default, CB, YT)
         local Y = YT[1]
         local F = Instance.new("Frame", Page)
-        F.Size = UDim2.new(1,-4,0,30)
+        F.Size = UDim2.new(1,-4,0,28)
         F.Position = UDim2.new(0,2,0,Y)
         F.BackgroundTransparency = 1
         local L = Instance.new("TextLabel", F)
@@ -412,11 +409,11 @@ local function CreateGUI()
         L.Text = Text .. ": " .. tostring(Default)
         L.TextColor3 = Color3.new(0.9,0.9,0.9)
         L.Font = Enum.Font.Gotham
-        L.TextSize = 11
+        L.TextSize = 10
         L.TextXAlignment = Enum.TextXAlignment.Left
         local Slider = Instance.new("Frame", F)
-        Slider.Size = UDim2.new(0.35,0,0,14)
-        Slider.Position = UDim2.new(0.6,0,0.5,-7)
+        Slider.Size = UDim2.new(0.35,0,0,12)
+        Slider.Position = UDim2.new(0.6,0,0.5,-6)
         Slider.BackgroundColor3 = Color3.fromRGB(40,40,40)
         local Fill = Instance.new("Frame", Slider)
         Fill.Size = UDim2.new((Default - Min) / (Max - Min), 0, 1, 0)
@@ -446,13 +443,13 @@ local function CreateGUI()
                 CB(Val)
             end
         end)
-        YT[1] = Y + 32
+        YT[1] = Y + 30
     end
 
     local function AddButton(Page, Text, CB, YT)
         local Y = YT[1]
         local B = Instance.new("TextButton", Page)
-        B.Size = UDim2.new(1,-4,0,28)
+        B.Size = UDim2.new(1,-4,0,26)
         B.Position = UDim2.new(0,2,0,Y)
         B.BackgroundColor3 = Color3.fromRGB(40,40,40)
         B.Text = Text
@@ -460,25 +457,23 @@ local function CreateGUI()
         B.Font = Enum.Font.GothamBold
         B.TextSize = 11
         B.MouseButton1Click:Connect(CB)
-        YT[1] = Y + 30
+        YT[1] = Y + 28
     end
 
     local function AddDropdown(Page, Text, Options, CB, YT)
         local Y = YT[1]
         local F = Instance.new("Frame", Page)
-        F.Size = UDim2.new(1,-4,0,28)
+        F.Size = UDim2.new(1,-4,0,26)
         F.Position = UDim2.new(0,2,0,Y)
         F.BackgroundTransparency = 1
-        
         local L = Instance.new("TextLabel", F)
         L.Size = UDim2.new(0.4,0,1,0)
         L.BackgroundTransparency = 1
         L.Text = Text
         L.TextColor3 = Color3.new(0.9,0.9,0.9)
         L.Font = Enum.Font.Gotham
-        L.TextSize = 11
+        L.TextSize = 10
         L.TextXAlignment = Enum.TextXAlignment.Left
-        
         local Drop = Instance.new("TextButton", F)
         Drop.Size = UDim2.new(0.55,0,1,0)
         Drop.Position = UDim2.new(0.42,0,0,0)
@@ -486,8 +481,7 @@ local function CreateGUI()
         Drop.Text = Options[1]
         Drop.TextColor3 = Color3.new(1,1,1)
         Drop.Font = Enum.Font.Gotham
-        Drop.TextSize = 11
-        
+        Drop.TextSize = 10
         local State = Options[1]
         Drop.MouseButton1Click:Connect(function()
             local Current = 1
@@ -499,18 +493,18 @@ local function CreateGUI()
             Drop.Text = State
             CB(State)
         end)
-        YT[1] = Y + 30
+        YT[1] = Y + 28
         CB(Options[1])
         return Drop
     end
 
     local EY = {0}
-    AddToggle(ESP_Page, "ESP Acik", true, function(v) S.ESP_On = v end, EY)
-    AddToggle(ESP_Page, "Kutular", true, function(v) S.ESP_Box = v end, EY)
-    AddToggle(ESP_Page, "Isimler", true, function(v) S.ESP_Name = v end, EY)
-    AddToggle(ESP_Page, "Can Bari", true, function(v) S.ESP_HP = v end, EY)
-    AddToggle(ESP_Page, "Cizgiler", true, function(v) S.ESP_Tracer = v end, EY)
-    AddToggle(ESP_Page, "Mesafe", true, function(v) S.ESP_Dist = v end, EY)
+    AddToggle(ESP_Page, "ESP", true, function(v) S.ESP_On = v end, EY)
+    AddToggle(ESP_Page, "Box", true, function(v) S.ESP_Box = v end, EY)
+    AddToggle(ESP_Page, "Name", true, function(v) S.ESP_Name = v end, EY)
+    AddToggle(ESP_Page, "HP", true, function(v) S.ESP_HP = v end, EY)
+    AddToggle(ESP_Page, "Tracer", true, function(v) S.ESP_Tracer = v end, EY)
+    AddToggle(ESP_Page, "Distance", true, function(v) S.ESP_Dist = v end, EY)
     AddToggle(ESP_Page, "Chams", true, function(v) S.ESP_Chams = v
         for Plr, _ in pairs(Chams_Data) do
             if v then if Plr.Character then UpdateChams(Plr, Plr.Character) end
@@ -520,16 +514,16 @@ local function CreateGUI()
     ESP_Page.CanvasSize = UDim2.new(0,0,0,EY[1]+10)
 
     local AY = {0}
-    AddToggle(AIM_Page, "Aimbot Acik (Sag Tik)", false, function(v) S.AIM_On = v
+    AddToggle(AIM_Page, "Aimbot (Sag Tik)", false, function(v) S.AIM_On = v
         if v and S.AIM_ShowFOV then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
     end, AY)
-    AddToggle(AIM_Page, "Takim Kontrol", false, function(v) S.AIM_Team = v end, AY)
-    AddToggle(AIM_Page, "Gorunurluk Kontrol", true, function(v) S.AIM_Vis = v end, AY)
-    AddToggle(AIM_Page, "FOV Dairesi", true, function(v) S.AIM_ShowFOV = v
+    AddToggle(AIM_Page, "Team Check", false, function(v) S.AIM_Team = v end, AY)
+    AddToggle(AIM_Page, "Visible", true, function(v) S.AIM_Vis = v end, AY)
+    AddToggle(AIM_Page, "FOV Circle", true, function(v) S.AIM_ShowFOV = v
         if v and S.AIM_On then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
     end, AY)
-    AddSlider(AIM_Page, "FOV Derecesi", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
-    AddSlider(AIM_Page, "Guc (1-5)", 1, 5, 3, function(v) S.AIM_Smooth = v end, AY)
+    AddSlider(AIM_Page, "FOV", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
+    AddSlider(AIM_Page, "Power", 1, 5, 3, function(v) S.AIM_Smooth = v end, AY)
     AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
     local ADY = {0}
@@ -537,16 +531,14 @@ local function CreateGUI()
     local function UpdatePlayers()
         PlayerNames = {}
         for _, Plr in ipairs(Players:GetPlayers()) do
-            if Plr ~= LocalPlayer then
-                table.insert(PlayerNames, Plr.Name)
-            end
+            if Plr ~= LocalPlayer then table.insert(PlayerNames, Plr.Name) end
         end
-        if #PlayerNames == 0 then table.insert(PlayerNames, "No Players") end
+        if #PlayerNames == 0 then table.insert(PlayerNames, "None") end
         return PlayerNames
     end
     
-    local SelectedPlayerName = "No Players"
-    local Dropdown = AddDropdown(ADMIN_Page, "Hedef Oyuncu:", UpdatePlayers(), function(v)
+    local SelectedPlayerName = "None"
+    local Dropdown = AddDropdown(ADMIN_Page, "Target:", UpdatePlayers(), function(v)
         SelectedPlayerName = v
         for _, Plr in ipairs(Players:GetPlayers()) do
             if Plr.Name == v then SelectedPlayer = Plr break end
@@ -555,45 +547,22 @@ local function CreateGUI()
     
     Players.PlayerAdded:Connect(function()
         local Names = UpdatePlayers()
-        if #Names > 0 then
-            Dropdown.Text = Names[1]
-            SelectedPlayerName = Names[1]
-            for _, Plr in ipairs(Players:GetPlayers()) do
-                if Plr.Name == Names[1] then SelectedPlayer = Plr break end
-            end
-        end
+        if #Names > 0 then Dropdown.Text = Names[1] SelectedPlayerName = Names[1]
+        for _, Plr in ipairs(Players:GetPlayers()) do if Plr.Name == Names[1] then SelectedPlayer = Plr break end end
     end)
     Players.PlayerRemoving:Connect(function()
         local Names = UpdatePlayers()
-        if #Names > 0 then
-            Dropdown.Text = Names[1]
-            SelectedPlayerName = Names[1]
-            for _, Plr in ipairs(Players:GetPlayers()) do
-                if Plr.Name == Names[1] then SelectedPlayer = Plr break end
-            end
-        end
+        if #Names > 0 then Dropdown.Text = Names[1] SelectedPlayerName = Names[1]
+        for _, Plr in ipairs(Players:GetPlayers()) do if Plr.Name == Names[1] then SelectedPlayer = Plr break end end
     end)
     
-    AddButton(ADMIN_Page, "Oyuncuyu Oldur", function()
-        if SelectedPlayer then KillPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddButton(ADMIN_Page, "Oyuncuyu Hapis Et", function()
-        if SelectedPlayer then JailPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddButton(ADMIN_Page, "Oyuncuya Isinlan", function()
-        if SelectedPlayer then TeleportToPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddButton(ADMIN_Page, "Oyuncuyu Cagir", function()
-        if SelectedPlayer then BringPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddToggle(ADMIN_Page, "Noclip", false, function(v) S.NoClip = v end, ADY)
-    AddToggle(ADMIN_Page, "Ucus", false, function(v) S.Fly = v end, ADY)
-    AddSlider(ADMIN_Page, "Ucus Hizi", 10, 100, 50, function(v) FlySpeed = v end, ADY)
-    
+    AddButton(ADMIN_Page, "Kill", function() if SelectedPlayer then KillPlayer(SelectedPlayer) end end, ADY)
+    AddButton(ADMIN_Page, "Jail", function() if SelectedPlayer then JailPlayer(SelectedPlayer) end end, ADY)
+    AddButton(ADMIN_Page, "TP To", function() if SelectedPlayer then TeleportToPlayer(SelectedPlayer) end end, ADY)
+    AddButton(ADMIN_Page, "Bring", function() if SelectedPlayer then BringPlayer(SelectedPlayer) end end, ADY)
+    AddToggle(ADMIN_Page, "NoClip", false, function(v) S.NoClip = v end, ADY)
+    AddToggle(ADMIN_Page, "Fly", false, function(v) S.Fly = v end, ADY)
+    AddSlider(ADMIN_Page, "Fly Speed", 10, 100, 50, function(v) FlySpeed = v end, ADY)
     ADMIN_Page.CanvasSize = UDim2.new(0,0,0,ADY[1]+20)
 end
 
@@ -627,4 +596,5 @@ task.spawn(function()
     while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
     task.wait(0.5)
     CreateGUI()
+    print("GINS v4.5 YUKLENDI")
 end)
