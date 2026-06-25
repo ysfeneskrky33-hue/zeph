@@ -4,6 +4,7 @@ local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local TeleportService = game:GetService("TeleportService")
 
 local S = {
     ESP_On = true, ESP_Box = true, ESP_Name = true, ESP_HP = true, ESP_Tracer = true, ESP_Dist = true,
@@ -11,7 +12,8 @@ local S = {
     AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 3,
     AIM_ShowFOV = true,
     NoClip = false,
-    Fly = false
+    Fly = false,
+    AntiCheatBypass = true
 }
 
 local ESP_Data = {}
@@ -20,6 +22,80 @@ local FOV_Circle = nil
 local RightMouseDown = false
 local FlySpeed = 50
 local SelectedPlayer = nil
+local OriginalCollision = {}
+
+-- =============================================
+-- ANTICHEAT BYPASS
+-- =============================================
+local function BypassAntiCheat()
+    -- 1. RemoteEvent ve RemoteFunction hook'larını engelle
+    local OldFireServer
+    OldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
+        local Args = {...}
+        local Method = getnamecallmethod()
+        if Method == "FireServer" or Method == "InvokeServer" then
+            local Name = self.Name
+            if Name:match("Anti") or Name:match("Cheat") or Name:match("Ban") or Name:match("Kick") then
+                return
+            end
+            if Name:match("Report") or Name:match("Log") or Name:match("Check") then
+                return
+            end
+        end
+        return OldFireServer(self, unpack(Args))
+    end)
+    
+    -- 2. TeleportService engelleme
+    local OldTeleport
+    OldTeleport = hookmetamethod(game, "__namecall", function(self, ...)
+        local Method = getnamecallmethod()
+        if Method == "Teleport" or Method == "TeleportToPlaceInstance" then
+            return
+        end
+        return OldTeleport(self, ...)
+    end)
+    
+    -- 3. Ban/Kick hook'larını engelle
+    local OldKick = game.Kick
+    game.Kick = function(...) return end
+    
+    local OldBan = Players.Ban
+    Players.Ban = function(...) return end
+    
+    -- 4. LocalPlayer değişkenlerini koru
+    local OldSet = hookmetamethod(game, "__newindex", function(self, Key, Value)
+        if Key == "Parent" and self:IsA("BasePart") and self.Parent == LocalPlayer.Character then
+            return
+        end
+        return rawset(self, Key, Value)
+    end)
+    
+    -- 5. Raycast bypass
+    local OldRaycast
+    OldRaycast = hookmetamethod(game, "__namecall", function(self, ...)
+        local Method = getnamecallmethod()
+        if Method == "Raycast" and self:IsA("Workspace") and S.NoClip then
+            return nil
+        end
+        return OldRaycast(self, ...)
+    end)
+    
+    -- 6. CharacterAdded event'ini temizle (anticheat eklemelerini engelle)
+    LocalPlayer.CharacterAdded:Connect(function(Char)
+        task.wait(0.1)
+        for _, Child in ipairs(Char:GetDescendants()) do
+            if Child:IsA("Script") or Child:IsA("LocalScript") then
+                if Child.Name:match("Anti") or Child.Name:match("Cheat") or Child.Name:match("Check") then
+                    Child:Destroy()
+                end
+            end
+        end
+    end)
+    
+    print("AntiCheat Bypass Aktif")
+end
+
+if S.AntiCheatBypass then BypassAntiCheat() end
 
 local function CreateFOVCircle()
     if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end
@@ -178,43 +254,52 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- NOCLIP
+-- NOCLIP FIX
 RunService.RenderStepped:Connect(function()
     if S.NoClip and LocalPlayer.Character then
-        local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        local Char = LocalPlayer.Character
+        local Hum = Char:FindFirstChild("Humanoid")
         if Hum then
             Hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
             Hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
             Hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
             Hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
             Hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
-            for _, Part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if Part:IsA("BasePart") then
-                    Part.CanCollide = false
-                end
+        end
+        for _, Part in ipairs(Char:GetDescendants()) do
+            if Part:IsA("BasePart") and Part.CanCollide then
+                OriginalCollision[Part] = Part.CanCollide
+                Part.CanCollide = false
             end
         end
+    else
+        for Part, State in pairs(OriginalCollision) do
+            if Part and Part.Parent then
+                Part.CanCollide = State
+            end
+        end
+        OriginalCollision = {}
     end
 end)
 
--- FLY
+-- FLY FIX
 RunService.RenderStepped:Connect(function()
     if S.Fly and LocalPlayer.Character then
         local Root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
         if Root and Hum then
             Hum.PlatformStand = true
-            Root.Velocity = Vector3.new(0, 0, 0)
-            local MoveDirection = Vector3.new(0, 0, 0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then MoveDirection = MoveDirection + Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then MoveDirection = MoveDirection - Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then MoveDirection = MoveDirection - Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then MoveDirection = MoveDirection + Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then MoveDirection = MoveDirection + Vector3.new(0, 1, 0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then MoveDirection = MoveDirection - Vector3.new(0, 1, 0) end
-            Root.Velocity = MoveDirection * FlySpeed
-            if MoveDirection.Magnitude > 0 then
-                Root.CFrame = CFrame.new(Root.Position, Root.Position + MoveDirection)
+            local V = Vector3.new(0, 0, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then V = V + Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then V = V - Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then V = V - Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then V = V + Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then V = V + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then V = V - Vector3.new(0, 1, 0) end
+            if V.Magnitude > 0 then V = V.Unit * FlySpeed end
+            Root.Velocity = V
+            if V.Magnitude > 0 then
+                Root.CFrame = CFrame.new(Root.Position, Root.Position + V.Unit)
             end
         end
     elseif not S.Fly and LocalPlayer.Character then
@@ -223,71 +308,110 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ADMIN KOMUTLARI
+-- KILL PLAYER FIX
 local function KillPlayer(Plr)
     if Plr and Plr.Character then
         local Hum = Plr.Character:FindFirstChild("Humanoid")
         if Hum then
+            -- 1. Yöntem: Health
             Hum.Health = 0
-        end
-    end
-end
-
-local function JailPlayer(Plr)
-    if Plr and Plr.Character then
-        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
-        if Root then
-            local Jail = Instance.new("Part")
-            Jail.Size = Vector3.new(6, 6, 6)
-            Jail.Position = Root.Position
-            Jail.Anchored = true
-            Jail.CanCollide = true
-            Jail.BrickColor = BrickColor.new("Bright red")
-            Jail.Transparency = 0.5
-            Jail.Parent = workspace
-            Jail.Name = "Jail_" .. Plr.Name
-            Root.CFrame = CFrame.new(Jail.Position)
-            task.wait(0.1)
-            local Walls = {}
-            local Positions = {
-                Vector3.new(0, 0, 3),
-                Vector3.new(0, 0, -3),
-                Vector3.new(3, 0, 0),
-                Vector3.new(-3, 0, 0),
-                Vector3.new(0, 3, 0),
-                Vector3.new(0, -3, 0)
-            }
-            for _, Pos in ipairs(Positions) do
-                local Wall = Instance.new("Part")
-                Wall.Size = Vector3.new(0.5, 6, 6)
-                Wall.Position = Jail.Position + Pos
-                Wall.Anchored = true
-                Wall.CanCollide = true
-                Wall.BrickColor = BrickColor.new("Bright red")
-                Wall.Transparency = 0.3
-                Wall.Parent = Jail
-                table.insert(Walls, Wall)
+            -- 2. Yöntem: BreakJoints
+            task.wait(0.05)
+            Plr.Character:BreakJoints()
+            -- 3. Yöntem: Humanoid üzerinden
+            task.wait(0.05)
+            Hum:TakeDamage(Hum.MaxHealth * 100)
+            -- 4. Yöntem: CFrame ile dışarı at
+            local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+            if Root then
+                Root.CFrame = Root.CFrame * CFrame.new(0, -500, 0)
+            end
+            -- 5. Yöntem: ServerEvent
+            for _, Desc in ipairs(Plr.Character:GetDescendants()) do
+                if Desc:IsA("RemoteEvent") or Desc:IsA("RemoteFunction") then
+                    pcall(function() Desc:FireServer() end)
+                end
             end
         end
     end
 end
 
+-- JAIL FIX
+local function JailPlayer(Plr)
+    if Plr and Plr.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        if Root then
+            local Pos = Root.Position
+            local Jail = Instance.new("Part")
+            Jail.Size = Vector3.new(8, 8, 8)
+            Jail.Position = Pos
+            Jail.Anchored = true
+            Jail.CanCollide = true
+            Jail.BrickColor = BrickColor.new("Bright red")
+            Jail.Transparency = 0.3
+            Jail.Parent = workspace
+            Jail.Name = "Jail_" .. Plr.Name
+            
+            Root.CFrame = CFrame.new(Jail.Position)
+            
+            local Walls = {}
+            local Sizes = {
+                {Vector3.new(0, 0, 4), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(0, 0, -4), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(4, 0, 0), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(-4, 0, 0), Vector3.new(0.5, 8, 0.5)},
+                {Vector3.new(0, 4, 0), Vector3.new(0.5, 0.5, 8)},
+                {Vector3.new(0, -4, 0), Vector3.new(0.5, 0.5, 8)}
+            }
+            for _, Data in ipairs(Sizes) do
+                local Wall = Instance.new("Part")
+                Wall.Size = Data[2]
+                Wall.Position = Jail.Position + Data[1]
+                Wall.Anchored = true
+                Wall.CanCollide = true
+                Wall.BrickColor = BrickColor.new("Bright red")
+                Wall.Transparency = 0.2
+                Wall.Parent = Jail
+            end
+        end
+    end
+end
+
+-- TELEPORT TO PLAYER FIX
 local function TeleportToPlayer(Plr)
     if Plr and Plr.Character and LocalPlayer.Character then
         local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
         local LRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if Root and LRoot then
-            LRoot.CFrame = Root.CFrame + Vector3.new(0, 2, 3)
+            LRoot.CFrame = Root.CFrame * CFrame.new(0, 2, 0)
+            -- Noclip ile git
+            if S.NoClip then
+                LRoot.CFrame = Root.CFrame
+            end
         end
     end
 end
 
+-- BRING PLAYER FIX (kalıcı tut)
 local function BringPlayer(Plr)
     if Plr and Plr.Character and LocalPlayer.Character then
         local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
         local LRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if Root and LRoot then
-            Root.CFrame = LRoot.CFrame + Vector3.new(0, 0, 3)
+            Root.CFrame = LRoot.CFrame * CFrame.new(0, 0, 3)
+            -- Sürekli takip et
+            local Con
+            Con = RunService.RenderStepped:Connect(function()
+                if not Plr or not Plr.Character or not LocalPlayer.Character then
+                    Con:Disconnect()
+                    return
+                end
+                local NewRoot = Plr.Character:FindFirstChild("HumanoidRootPart")
+                local NewLRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if NewRoot and NewLRoot then
+                    NewRoot.CFrame = NewLRoot.CFrame * CFrame.new(0, 0, 3)
+                end
+            end)
         end
     end
 end
@@ -302,7 +426,7 @@ local function CreateGUI()
     end
 
     local Main = Instance.new("Frame", SG)
-    Main.Size = UDim2.new(0, 350, 0, 550)
+    Main.Size = UDim2.new(0, 350, 0, 580)
     Main.Position = UDim2.new(0.5, -175, 0.05, 0)
     Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
     Main.BorderSizePixel = 1
@@ -313,10 +437,10 @@ local function CreateGUI()
     local Title = Instance.new("TextLabel", Main)
     Title.Size = UDim2.new(1,0,0,30)
     Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    Title.Text = "GINS v4.4"
+    Title.Text = "GINS v4.5 - FULL BYPASS"
     Title.TextColor3 = Color3.fromRGB(255,50,50)
     Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 14
+    Title.TextSize = 13
 
     local CloseBtn = Instance.new("TextButton", Main)
     CloseBtn.Size = UDim2.new(0,30,0,30)
@@ -349,7 +473,7 @@ local function CreateGUI()
         Page.Position = UDim2.new(0,3,0,62)
         Page.BackgroundTransparency = 1
         Page.ScrollBarThickness = 4
-        Page.CanvasSize = UDim2.new(0,0,0,600)
+        Page.CanvasSize = UDim2.new(0,0,0,650)
         Page.Visible = false
         Btn.MouseButton1Click:Connect(function()
             for _, t in ipairs(Tabs) do t.BackgroundColor3 = Color3.fromRGB(30,30,30) end
@@ -500,7 +624,6 @@ local function CreateGUI()
         return Drop
     end
 
-    -- ESP PAGE
     local EY = {0}
     AddToggle(ESP_Page, "ESP Acik", true, function(v) S.ESP_On = v end, EY)
     AddToggle(ESP_Page, "Kutular", true, function(v) S.ESP_Box = v end, EY)
@@ -516,7 +639,6 @@ local function CreateGUI()
     end, EY)
     ESP_Page.CanvasSize = UDim2.new(0,0,0,EY[1]+10)
 
-    -- AIMBOT PAGE
     local AY = {0}
     AddToggle(AIM_Page, "Aimbot Acik (Sag Tik)", false, function(v) S.AIM_On = v
         if v and S.AIM_ShowFOV then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
@@ -527,106 +649,4 @@ local function CreateGUI()
         if v and S.AIM_On then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
     end, AY)
     AddSlider(AIM_Page, "FOV Derecesi", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
-    AddSlider(AIM_Page, "Guc (1-5)", 1, 5, 3, function(v) S.AIM_Smooth = v end, AY)
-    AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
-
-    -- ADMIN PAGE
-    local ADY = {0}
-    
-    -- Oyuncu seçme dropdown
-    local PlayerNames = {}
-    local function UpdatePlayers()
-        PlayerNames = {}
-        for _, Plr in ipairs(Players:GetPlayers()) do
-            if Plr ~= LocalPlayer then
-                table.insert(PlayerNames, Plr.Name)
-            end
-        end
-        if #PlayerNames == 0 then table.insert(PlayerNames, "No Players") end
-        return PlayerNames
-    end
-    
-    local SelectedPlayerName = "No Players"
-    local Dropdown = AddDropdown(ADMIN_Page, "Hedef Oyuncu:", UpdatePlayers(), function(v)
-        SelectedPlayerName = v
-        for _, Plr in ipairs(Players:GetPlayers()) do
-            if Plr.Name == v then SelectedPlayer = Plr break end
-        end
-    end, ADY)
-    
-    -- Oyuncu listesini güncelle
-    Players.PlayerAdded:Connect(function()
-        local Names = UpdatePlayers()
-        if #Names > 0 then
-            Dropdown.Text = Names[1]
-            SelectedPlayerName = Names[1]
-            for _, Plr in ipairs(Players:GetPlayers()) do
-                if Plr.Name == Names[1] then SelectedPlayer = Plr break end
-            end
-        end
-    end)
-    Players.PlayerRemoving:Connect(function()
-        local Names = UpdatePlayers()
-        if #Names > 0 then
-            Dropdown.Text = Names[1]
-            SelectedPlayerName = Names[1]
-            for _, Plr in ipairs(Players:GetPlayers()) do
-                if Plr.Name == Names[1] then SelectedPlayer = Plr break end
-            end
-        end
-    end)
-    
-    AddButton(ADMIN_Page, "Oyuncuyu Oldur", function()
-        if SelectedPlayer then KillPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddButton(ADMIN_Page, "Oyuncuyu Hapis Et", function()
-        if SelectedPlayer then JailPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddButton(ADMIN_Page, "Oyuncuya Isinlan", function()
-        if SelectedPlayer then TeleportToPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddButton(ADMIN_Page, "Oyuncuyu Cagir", function()
-        if SelectedPlayer then BringPlayer(SelectedPlayer) end
-    end, ADY)
-    
-    AddToggle(ADMIN_Page, "Noclip", false, function(v) S.NoClip = v end, ADY)
-    AddToggle(ADMIN_Page, "Ucus (WASD + Space/Yukari + Shift/Asagi)", false, function(v) S.Fly = v end, ADY)
-    AddSlider(ADMIN_Page, "Ucus Hizi", 10, 100, 50, function(v) FlySpeed = v end, ADY)
-    
-    ADMIN_Page.CanvasSize = UDim2.new(0,0,0,ADY[1]+20)
-end
-
-local function AddPlayer(Plr)
-    if Plr == LocalPlayer then return end
-    Plr.CharacterAdded:Connect(function(Char) task.wait(0.3) CreateESP(Plr) end)
-    if Plr.Character then CreateESP(Plr) end
-end
-
-for _, p in ipairs(Players:GetPlayers()) do AddPlayer(p) end
-Players.PlayerAdded:Connect(AddPlayer)
-Players.PlayerRemoving:Connect(ClearAll)
-LocalPlayer.CharacterAdded:Connect(function()
-    for Plr, _ in pairs(ESP_Data) do ClearAll(Plr) end
-    for Plr, _ in pairs(Chams_Data) do ClearAll(Plr) end
-end)
-
-task.spawn(function()
-    while task.wait(0.15) do
-        for Plr, H in pairs(Chams_Data) do
-            if H and H.Parent then
-                H.FillColor = S.ESP_ChamsColor
-                H.OutlineColor = S.ESP_ChamsColor
-                H.Enabled = S.ESP_On and S.ESP_Chams
-            end
-        end
-    end
-end)
-
-task.spawn(function()
-    while not LocalPlayer.Character or not LocalPlayer.Character.Parent do task.wait(0.5) end
-    task.wait(0.5)
-    CreateGUI()
-end)
+    AddSlider(AIM_Page, "Guc (1-5)", 1
