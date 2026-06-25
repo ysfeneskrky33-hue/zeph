@@ -152,7 +152,7 @@ local function CreateESP(Plr)
     end)
 end
 
--- AIMBOT - 1-5 ARASI GUC (1=yumusak, 5=sert) - DENGELI
+-- AIMBOT - MAX GUC 0.6 (FULL'DE BILE KITLENME SORUNU YOK)
 RunService.RenderStepped:Connect(function()
     UpdateFOVCircle()
     if not S.AIM_On or not RightMouseDown then return end
@@ -166,7 +166,7 @@ RunService.RenderStepped:Connect(function()
                 local DX = TP.X - MP.X
                 local DY = TP.Y - MP.Y
                 if math.abs(DX) > 0.5 or math.abs(DY) > 0.5 then
-                    local Power = S.AIM_Smooth / 5
+                    local Power = (S.AIM_Smooth / 5) * 0.6
                     mousemoverel(DX * Power, DY * Power)
                 end
             end
@@ -195,7 +195,7 @@ local function CreateGUI()
     local Title = Instance.new("TextLabel", Main)
     Title.Size = UDim2.new(1,0,0,30)
     Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    Title.Text = "GINS v4.2"
+    Title.Text = "GINS v4.3"
     Title.TextColor3 = Color3.fromRGB(255,50,50)
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 14
@@ -366,7 +366,7 @@ local function CreateGUI()
         if v and S.AIM_On then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
     end, AY)
     AddSlider(AIM_Page, "FOV Derecesi", 20, 300, 120, function(v) S.AIM_FOV = v if FOV_Circle then FOV_Circle.Radius = v end end, AY)
-    AddSlider(AIM_Page, "Guc (1-Yumusak, 5-Sert)", 1, 5, 3, function(v) S.AIM_Smooth = v end, AY)
+    AddSlider(AIM_Page, "Guc (1-5)", 1, 5, 3, function(v) S.AIM_Smooth = v end, AY)
     AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
     local ADY = {0}
