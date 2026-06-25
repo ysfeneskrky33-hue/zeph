@@ -9,13 +9,17 @@ local S = {
     ESP_On = true, ESP_Box = true, ESP_Name = true, ESP_HP = true, ESP_Tracer = true, ESP_Dist = true,
     ESP_Chams = true, ESP_ChamsColor = Color3.fromRGB(255, 0, 0),
     AIM_On = false, AIM_Team = false, AIM_Vis = true, AIM_FOV = 120, AIM_Smooth = 3,
-    AIM_ShowFOV = true
+    AIM_ShowFOV = true,
+    NoClip = false,
+    Fly = false
 }
 
 local ESP_Data = {}
 local Chams_Data = {}
 local FOV_Circle = nil
 local RightMouseDown = false
+local FlySpeed = 50
+local SelectedPlayer = nil
 
 local function CreateFOVCircle()
     if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end
@@ -152,7 +156,7 @@ local function CreateESP(Plr)
     end)
 end
 
--- AIMBOT - MAX GUC 0.6 (FULL'DE BILE KITLENME SORUNU YOK)
+-- AIMBOT
 RunService.RenderStepped:Connect(function()
     UpdateFOVCircle()
     if not S.AIM_On or not RightMouseDown then return end
@@ -174,6 +178,120 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- NOCLIP
+RunService.RenderStepped:Connect(function()
+    if S.NoClip and LocalPlayer.Character then
+        local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if Hum then
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+            for _, Part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if Part:IsA("BasePart") then
+                    Part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- FLY
+RunService.RenderStepped:Connect(function()
+    if S.Fly and LocalPlayer.Character then
+        local Root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if Root and Hum then
+            Hum.PlatformStand = true
+            Root.Velocity = Vector3.new(0, 0, 0)
+            local MoveDirection = Vector3.new(0, 0, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then MoveDirection = MoveDirection + Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then MoveDirection = MoveDirection - Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then MoveDirection = MoveDirection - Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then MoveDirection = MoveDirection + Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then MoveDirection = MoveDirection + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then MoveDirection = MoveDirection - Vector3.new(0, 1, 0) end
+            Root.Velocity = MoveDirection * FlySpeed
+            if MoveDirection.Magnitude > 0 then
+                Root.CFrame = CFrame.new(Root.Position, Root.Position + MoveDirection)
+            end
+        end
+    elseif not S.Fly and LocalPlayer.Character then
+        local Hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if Hum then Hum.PlatformStand = false end
+    end
+end)
+
+-- ADMIN KOMUTLARI
+local function KillPlayer(Plr)
+    if Plr and Plr.Character then
+        local Hum = Plr.Character:FindFirstChild("Humanoid")
+        if Hum then
+            Hum.Health = 0
+        end
+    end
+end
+
+local function JailPlayer(Plr)
+    if Plr and Plr.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        if Root then
+            local Jail = Instance.new("Part")
+            Jail.Size = Vector3.new(6, 6, 6)
+            Jail.Position = Root.Position
+            Jail.Anchored = true
+            Jail.CanCollide = true
+            Jail.BrickColor = BrickColor.new("Bright red")
+            Jail.Transparency = 0.5
+            Jail.Parent = workspace
+            Jail.Name = "Jail_" .. Plr.Name
+            Root.CFrame = CFrame.new(Jail.Position)
+            task.wait(0.1)
+            local Walls = {}
+            local Positions = {
+                Vector3.new(0, 0, 3),
+                Vector3.new(0, 0, -3),
+                Vector3.new(3, 0, 0),
+                Vector3.new(-3, 0, 0),
+                Vector3.new(0, 3, 0),
+                Vector3.new(0, -3, 0)
+            }
+            for _, Pos in ipairs(Positions) do
+                local Wall = Instance.new("Part")
+                Wall.Size = Vector3.new(0.5, 6, 6)
+                Wall.Position = Jail.Position + Pos
+                Wall.Anchored = true
+                Wall.CanCollide = true
+                Wall.BrickColor = BrickColor.new("Bright red")
+                Wall.Transparency = 0.3
+                Wall.Parent = Jail
+                table.insert(Walls, Wall)
+            end
+        end
+    end
+end
+
+local function TeleportToPlayer(Plr)
+    if Plr and Plr.Character and LocalPlayer.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        local LRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if Root and LRoot then
+            LRoot.CFrame = Root.CFrame + Vector3.new(0, 2, 3)
+        end
+    end
+end
+
+local function BringPlayer(Plr)
+    if Plr and Plr.Character and LocalPlayer.Character then
+        local Root = Plr.Character:FindFirstChild("HumanoidRootPart")
+        local LRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if Root and LRoot then
+            Root.CFrame = LRoot.CFrame + Vector3.new(0, 0, 3)
+        end
+    end
+end
+
 local function CreateGUI()
     local SG = Instance.new("ScreenGui")
     SG.Name = "GINSv3"
@@ -184,8 +302,8 @@ local function CreateGUI()
     end
 
     local Main = Instance.new("Frame", SG)
-    Main.Size = UDim2.new(0, 300, 0, 480)
-    Main.Position = UDim2.new(0.5, -150, 0.1, 0)
+    Main.Size = UDim2.new(0, 350, 0, 550)
+    Main.Position = UDim2.new(0.5, -175, 0.05, 0)
     Main.BackgroundColor3 = Color3.fromRGB(10,10,10)
     Main.BorderSizePixel = 1
     Main.BorderColor3 = Color3.fromRGB(80,80,80)
@@ -195,7 +313,7 @@ local function CreateGUI()
     local Title = Instance.new("TextLabel", Main)
     Title.Size = UDim2.new(1,0,0,30)
     Title.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    Title.Text = "GINS v4.3"
+    Title.Text = "GINS v4.4"
     Title.TextColor3 = Color3.fromRGB(255,50,50)
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 14
@@ -231,7 +349,7 @@ local function CreateGUI()
         Page.Position = UDim2.new(0,3,0,62)
         Page.BackgroundTransparency = 1
         Page.ScrollBarThickness = 4
-        Page.CanvasSize = UDim2.new(0,0,0,450)
+        Page.CanvasSize = UDim2.new(0,0,0,600)
         Page.Visible = false
         Btn.MouseButton1Click:Connect(function()
             for _, t in ipairs(Tabs) do t.BackgroundColor3 = Color3.fromRGB(30,30,30) end
@@ -327,20 +445,62 @@ local function CreateGUI()
         YT[1] = Y + 32
     end
 
-    local function AddText(Page, Text, YT)
+    local function AddButton(Page, Text, CB, YT)
         local Y = YT[1]
-        local L = Instance.new("TextLabel", Page)
-        L.Size = UDim2.new(1,-4,0,20)
-        L.Position = UDim2.new(0,2,0,Y)
-        L.BackgroundTransparency = 1
-        L.Text = Text
-        L.TextColor3 = Color3.new(0.7,0.7,0.7)
-        L.Font = Enum.Font.Gotham
-        L.TextSize = 10
-        L.TextXAlignment = Enum.TextXAlignment.Left
-        YT[1] = Y + 22
+        local B = Instance.new("TextButton", Page)
+        B.Size = UDim2.new(1,-4,0,28)
+        B.Position = UDim2.new(0,2,0,Y)
+        B.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        B.Text = Text
+        B.TextColor3 = Color3.new(1,1,1)
+        B.Font = Enum.Font.GothamBold
+        B.TextSize = 11
+        B.MouseButton1Click:Connect(CB)
+        YT[1] = Y + 30
     end
 
+    local function AddDropdown(Page, Text, Options, CB, YT)
+        local Y = YT[1]
+        local F = Instance.new("Frame", Page)
+        F.Size = UDim2.new(1,-4,0,28)
+        F.Position = UDim2.new(0,2,0,Y)
+        F.BackgroundTransparency = 1
+        
+        local L = Instance.new("TextLabel", F)
+        L.Size = UDim2.new(0.4,0,1,0)
+        L.BackgroundTransparency = 1
+        L.Text = Text
+        L.TextColor3 = Color3.new(0.9,0.9,0.9)
+        L.Font = Enum.Font.Gotham
+        L.TextSize = 11
+        L.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local Drop = Instance.new("TextButton", F)
+        Drop.Size = UDim2.new(0.55,0,1,0)
+        Drop.Position = UDim2.new(0.42,0,0,0)
+        Drop.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        Drop.Text = Options[1]
+        Drop.TextColor3 = Color3.new(1,1,1)
+        Drop.Font = Enum.Font.Gotham
+        Drop.TextSize = 11
+        
+        local State = Options[1]
+        Drop.MouseButton1Click:Connect(function()
+            local Current = 1
+            for i, Opt in ipairs(Options) do
+                if Opt == State then Current = i break end
+            end
+            Current = Current % #Options + 1
+            State = Options[Current]
+            Drop.Text = State
+            CB(State)
+        end)
+        YT[1] = Y + 30
+        CB(Options[1])
+        return Drop
+    end
+
+    -- ESP PAGE
     local EY = {0}
     AddToggle(ESP_Page, "ESP Acik", true, function(v) S.ESP_On = v end, EY)
     AddToggle(ESP_Page, "Kutular", true, function(v) S.ESP_Box = v end, EY)
@@ -356,6 +516,7 @@ local function CreateGUI()
     end, EY)
     ESP_Page.CanvasSize = UDim2.new(0,0,0,EY[1]+10)
 
+    -- AIMBOT PAGE
     local AY = {0}
     AddToggle(AIM_Page, "Aimbot Acik (Sag Tik)", false, function(v) S.AIM_On = v
         if v and S.AIM_ShowFOV then CreateFOVCircle() else if FOV_Circle then pcall(function() FOV_Circle:Remove() end) FOV_Circle = nil end end
@@ -369,11 +530,72 @@ local function CreateGUI()
     AddSlider(AIM_Page, "Guc (1-5)", 1, 5, 3, function(v) S.AIM_Smooth = v end, AY)
     AIM_Page.CanvasSize = UDim2.new(0,0,0,AY[1]+10)
 
+    -- ADMIN PAGE
     local ADY = {0}
-    AddText(ADMIN_Page, "=== ADMIN PANELI ===", ADY)
-    AddText(ADMIN_Page, "--- BURAYA EKLENECEK ---", ADY)
-    AddText(ADMIN_Page, "KICK / BAN / TP / GOD MODE", ADY)
-    AddText(ADMIN_Page, "VE DIGER KOMUTLAR", ADY)
+    
+    -- Oyuncu seçme dropdown
+    local PlayerNames = {}
+    local function UpdatePlayers()
+        PlayerNames = {}
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr ~= LocalPlayer then
+                table.insert(PlayerNames, Plr.Name)
+            end
+        end
+        if #PlayerNames == 0 then table.insert(PlayerNames, "No Players") end
+        return PlayerNames
+    end
+    
+    local SelectedPlayerName = "No Players"
+    local Dropdown = AddDropdown(ADMIN_Page, "Hedef Oyuncu:", UpdatePlayers(), function(v)
+        SelectedPlayerName = v
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr.Name == v then SelectedPlayer = Plr break end
+        end
+    end, ADY)
+    
+    -- Oyuncu listesini güncelle
+    Players.PlayerAdded:Connect(function()
+        local Names = UpdatePlayers()
+        if #Names > 0 then
+            Dropdown.Text = Names[1]
+            SelectedPlayerName = Names[1]
+            for _, Plr in ipairs(Players:GetPlayers()) do
+                if Plr.Name == Names[1] then SelectedPlayer = Plr break end
+            end
+        end
+    end)
+    Players.PlayerRemoving:Connect(function()
+        local Names = UpdatePlayers()
+        if #Names > 0 then
+            Dropdown.Text = Names[1]
+            SelectedPlayerName = Names[1]
+            for _, Plr in ipairs(Players:GetPlayers()) do
+                if Plr.Name == Names[1] then SelectedPlayer = Plr break end
+            end
+        end
+    end)
+    
+    AddButton(ADMIN_Page, "Oyuncuyu Oldur", function()
+        if SelectedPlayer then KillPlayer(SelectedPlayer) end
+    end, ADY)
+    
+    AddButton(ADMIN_Page, "Oyuncuyu Hapis Et", function()
+        if SelectedPlayer then JailPlayer(SelectedPlayer) end
+    end, ADY)
+    
+    AddButton(ADMIN_Page, "Oyuncuya Isinlan", function()
+        if SelectedPlayer then TeleportToPlayer(SelectedPlayer) end
+    end, ADY)
+    
+    AddButton(ADMIN_Page, "Oyuncuyu Cagir", function()
+        if SelectedPlayer then BringPlayer(SelectedPlayer) end
+    end, ADY)
+    
+    AddToggle(ADMIN_Page, "Noclip", false, function(v) S.NoClip = v end, ADY)
+    AddToggle(ADMIN_Page, "Ucus (WASD + Space/Yukari + Shift/Asagi)", false, function(v) S.Fly = v end, ADY)
+    AddSlider(ADMIN_Page, "Ucus Hizi", 10, 100, 50, function(v) FlySpeed = v end, ADY)
+    
     ADMIN_Page.CanvasSize = UDim2.new(0,0,0,ADY[1]+20)
 end
 
